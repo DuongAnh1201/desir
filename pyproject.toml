@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "desir"
+version = "0.1.0"
+description = "A command-line tool"
+requires-python = ">=3.13"
+license = "MIT"
+authors = [
+    { name = "TomNguyen", email = "tomnguyen6766@gmail.com" },
+]
+dependencies = [
+    "logfire>=4.27.0",
+    "pveagle>=2.0.1",
+]
+
+[project.scripts]
+desir = "desir:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/desir"]
