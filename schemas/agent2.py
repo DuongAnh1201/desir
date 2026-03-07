@@ -12,5 +12,7 @@ class CalendarRequest(BaseModel):
 
 class CalendarResult(BaseModel):
     success: bool
-    event_id: str = ""
     message: str
+    title: str = ""      
+    start: datetime = None 
+    event_id: str = ""

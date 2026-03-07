@@ -12,9 +12,17 @@ authors = [
     { name = "TomNguyen", email = "tomnguyen6766@gmail.com" },
 ]
 dependencies = [
+    "google-api-python-client>=2.192.0",
+    "google-auth-httplib2>=0.3.0",
+    "google-auth-oauthlib>=1.3.0",
     "logfire>=4.27.0",
+    "openai>=2.26.0",
     "pveagle>=2.0.1",
+    "pydantic-ai>=1.67.0",
     "pydantic-settings>=2.13.1",
+    "pytest>=9.0.2",
+    "python-dotenv>=1.2.2",
+    "sounddevice>=0.5.5",
 ]
 
 [project.scripts]
