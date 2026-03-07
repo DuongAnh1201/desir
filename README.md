@@ -57,16 +57,33 @@ User (Voice / Text Input)
 ### Prerequisites
 
 - Python 3.13+
+- [uv](https://docs.astral.sh/uv/) — fast Python package and project manager
 - LLM API access (e.g., Claude, GPT, or local model)
 - [Logfire](https://logfire.pydantic.dev) account for observability
+
+### Install uv
+
+**macOS / Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Windows:**
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+After installation, restart your terminal so the `uv` command is available.
 
 ### Installation
 
 ```bash
-git clone https://github.com/tomnguyen6766/desir.git
+git clone https://github.com/DuongAnh1201/desir.git
 cd desir
 uv sync
 ```
+
+`uv sync` reads `pyproject.toml`, creates a `.venv`, and installs all dependencies automatically.
 
 ### Logfire Setup
 
