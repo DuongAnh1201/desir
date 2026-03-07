@@ -1,20 +1,26 @@
-"""Schemas for the Zalo agent."""
-from enum import Enum
+"""Schemas for the Communication agent (iMessage + phone calls)."""
+from typing import Literal
 from pydantic import BaseModel
 
 
-class ZaloRequest(BaseModel):
+class iMessageRequest(BaseModel):
     recipient: str
-    action: str
-    content: str
-
-class ZaloAction(Enum):
-    Call = "call"
-    Message = "message"
-    Unknown = "unknown"
+    """Phone number or Apple ID email of the recipient."""
+    body: str
+    """AI-generated message content."""
 
 
+class CallRequest(BaseModel):
+    recipient: str
+    """Phone number to call."""
 
-class ZaloResult(BaseModel):
+
+class CommunicationRequest(BaseModel):
+    action: Literal["imessage", "call"]
+    imessage: iMessageRequest | None = None
+    call: CallRequest | None = None
+
+
+class CommunicationResult(BaseModel):
     success: bool
     message: str

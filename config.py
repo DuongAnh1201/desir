@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     serper_api_key: str = os.getenv("SERPER_API_KEY")
     """Required for live event search in Agent 2 (Phase 4+)."""
 
+    email_password: str = os.getenv("EMAIL_PASSWORD", "")
+    """Gmail app password for the email agent."""
+
     logfire_token: str
     """Required for Logfire integration."""
 
