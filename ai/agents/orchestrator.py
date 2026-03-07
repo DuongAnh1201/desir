@@ -16,7 +16,7 @@ def get_orchestrator() -> Agent:
             model=settings.ai_model,
             name="orchestrator",
             system_prompt=load_prompt("orchestrator"),
-            result_type=OrchestratorResult,
+            output_type=OrchestratorResult,
             deps_type=OrchestratorDeps,
         )
 
@@ -46,12 +46,15 @@ def get_orchestrator() -> Agent:
             return result.output.summary
 
         @_orchestrator.tool
-        async def delegate_zalo(ctx, recipient: str, message: str) -> str:
-            """Delegate a Zalo message to the Zalo sub-agent."""
-            from ai.agents.agent4 import get_zalo_agent
-            result = await get_zalo_agent().run(
-                f"Send Zalo message to {recipient}: {message}"
+        async def delegate_communication(ctx, recipient: str, action: str, message: str = "") -> str:
+            """Delegate an iMessage or phone call to the communication sub-agent."""
+            from ai.agents.agent4 import get_communication_agent
+            prompt = (
+                f"Call {recipient}"
+                if action == "call"
+                else f"Send iMessage to {recipient}: {message}"
             )
+            result = await get_communication_agent().run(prompt, deps=ctx.deps)
             return result.output.message
 
     return _orchestrator

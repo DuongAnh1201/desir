@@ -18,7 +18,7 @@ def get_email_agent() -> Agent:
             model=settings.ai_model,
             name="email_agent",
             system_prompt=_SYSTEM_PROMPT,
-            result_type=EmailResult,
+            output_type=EmailResult,
             deps_type=OrchestratorDeps,
         )
 

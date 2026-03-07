@@ -22,3 +22,6 @@ def get_calendar_agent() -> Agent:
         )
 
     return _calendar_agent
+
+if __name__ == "__main__":
+    get_calendar_agent()

@@ -18,7 +18,7 @@ def get_search_agent() -> Agent:
             model=settings.ai_model,
             name="search_agent",
             system_prompt=load_prompt("search_agent"),
-            result_type=SearchResult,
+            output_type=SearchResult,
             deps_type=OrchestratorDeps,
         )
 
