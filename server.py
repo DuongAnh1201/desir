@@ -44,6 +44,20 @@ TOOL_DEFINITIONS = [
     },
     {
         "type": "function",
+        "name": "schedule_event",
+        "description": "Add or manage an event on the user's Apple Calendar.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Event title."},
+                "when": {"type": "string", "description": "Date and time, e.g. 'tomorrow at 9am' or '2026-03-10T09:00'."},
+                "details": {"type": "string", "description": "Optional extra details or description."},
+            },
+            "required": ["title", "when"],
+        },
+    },
+    {
+        "type": "function",
         "name": "search_web",
         "description": "Search the internet and return a summary of results.",
         "parameters": {

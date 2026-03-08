@@ -10,4 +10,5 @@ class OrchestratorDeps:
     email_address: str = field(default="tomnguyen6766@gmail.com")
     tom_history_context: str = field(default=_TOM_HISTORY)
     search_api_key: str = field(default="")
+    calendar_event_ids: dict = field(default_factory=dict)
     """History context for the orchestrator."""

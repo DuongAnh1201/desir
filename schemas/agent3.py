@@ -1,6 +1,5 @@
 """Schemas for the Search agent."""
 from pydantic import BaseModel
-from pydantic import field
 
 class SearchRequest(BaseModel):
     query: str
@@ -10,5 +9,4 @@ class SearchRequest(BaseModel):
 
 
 class SearchResult(BaseModel):
-    results: list[dict]
     summary: str
