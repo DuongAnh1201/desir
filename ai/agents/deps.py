@@ -4,7 +4,7 @@ from ai.prompts import load_prompt
 _TOM_HISTORY = load_prompt("tombio")
 @dataclass
 class OrchestratorDeps:
-    history_context: list[str] = field(default_factory=list)
+    history_context: dict = field(default_factory=dict)
     preferred_pronouns: str = field(default="Sir")
     name: str = field(default="Tom")
     email_address: str = field(default="tomnguyen6766@gmail.com")

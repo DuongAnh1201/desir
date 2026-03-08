@@ -28,8 +28,12 @@ class Settings(BaseSettings):
        'google-gla:gemini-1.5-pro'   (Google Gemini via Generative Language API)
        'openai:gpt-4o'               (OpenAI)
     """
-    # -- TTS and STT Agents ────────────────────────────────────────────────────
-    stt_model: str = os.getenv("STT_MODEL")
+    # -- Realtime Audio ────────────────────────────────────────────────────────
+    realtime_model: str = os.getenv("REALTIME_MODEL", "gpt-4o-mini-realtime-preview")
+    """OpenAI Realtime model for native audio I/O."""
+
+    realtime_voice: str = os.getenv("REALTIME_VOICE", "nova")
+    """Realtime voice. Options: alloy, ash, ballad, coral, echo, sage, shimmer, verse."""
 
     # ── API Keys ────────────────────────────────────────────────────────────────
     openai_api_key: str = os.getenv("OPENAI_API_KEY")
