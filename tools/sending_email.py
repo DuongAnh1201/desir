@@ -1,36 +1,17 @@
-import smtplib
-from email.message import EmailMessage
-
-_SMTP_HOST = "smtp.gmail.com"
-_SMTP_PORT = 587
-_USERNAME = "tomnguyen6766@gmail.com"
-_SENDER = "tomnguyen6766@gmail.com"
+import resend
+from config import settings
 
 
-def _send(recipient: str, subject: str, body: str, html: bool, password: str) -> bool:
-    msg = EmailMessage()
-    msg["From"] = _SENDER
-    msg["To"] = recipient
-    msg["Subject"] = subject
-    if html:
-        msg.add_alternative(body, subtype="html")
-    else:
-        msg.set_content(body)
+def _get_client(api_key: str = "") -> None:
+    resend.api_key = api_key or settings.resend_api_key
 
-    try:
-        with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=30) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(_USERNAME, password)
-            server.send_message(msg)
-        return True
-    except smtplib.SMTPException as e:
-        print(f"SMTP error: {e}")
-        return False
-    except Exception as e:
-        print(f"General error: {e}")
-        return False
+
+def add_domain(domain_name: str) -> dict:
+    """Register a domain with Resend and return the DNS records to configure."""
+    _get_client()
+    params: resend.Domains.CreateParams = {"name": domain_name}
+    domain = resend.Domains.create(params)
+    return domain
 
 
 def send_notification_email(
@@ -39,26 +20,43 @@ def send_notification_email(
     details: str,
     link: str = "",
     sender_name: str = "Desir",
-    password: str = "",
-) -> bool:
-    """
-    Send a styled HTML notification email.
-    `details`, `link`, and `sender_name` are AI-generated at call time.
-    """
-    body = _build_notification_html(details, link, sender_name)
-    return _send(recipient, subject, body, html=True, password=password)
+    api_key: str = "",
+    from_address: str = "Desir <onboarding@resend.dev>",
+) -> str:
+    """Send a styled HTML notification email via Resend. Returns 'ok' or an error message."""
+    _get_client(api_key)
+    html = _build_notification_html(details, link, sender_name)
+    try:
+        resend.Emails.send({
+            "from": from_address,
+            "to": [recipient],
+            "subject": subject,
+            "html": html,
+        })
+        return "ok"
+    except Exception as e:
+        return str(e)
 
 
 def send_user_email(
     recipient: str,
     subject: str,
     body: str,
-    password: str = "",
-) -> bool:
-    """
-    Send a plain-text email composed by the AI on behalf of the user.
-    """
-    return _send(recipient, subject, body, html=False, password=password)
+    api_key: str = "",
+    from_address: str = "Desir <onboarding@resend.dev>",
+) -> str:
+    """Send a plain-text email via Resend. Returns 'ok' or an error message."""
+    _get_client(api_key)
+    try:
+        resend.Emails.send({
+            "from": from_address,
+            "to": [recipient],
+            "subject": subject,
+            "text": body,
+        })
+        return "ok"
+    except Exception as e:
+        return str(e)
 
 
 def _build_notification_html(details: str, link: str, sender_name: str) -> str:

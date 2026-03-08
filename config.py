@@ -42,8 +42,11 @@ class Settings(BaseSettings):
     serper_api_key: str = os.getenv("SERPER_API_KEY")
     """Required for live event search in Agent 2 (Phase 4+)."""
 
-    email_password: str = os.getenv("EMAIL_PASSWORD", "")
-    """Gmail app password for the email agent."""
+    resend_api_key: str = os.getenv("RESEND_API_KEY", "")
+    """Resend API key for sending emails."""
+
+    resend_from: str = os.getenv("RESEND_FROM", "Desir <onboarding@resend.dev>")
+    """Sender address. Use a verified domain in production."""
 
     logfire_token: str
     """Required for Logfire integration."""

@@ -34,18 +34,64 @@ Our potential users are those who seek to move beyond traditional chatbots and d
 ## Architecture Overview
 
 ```
-User (Voice / Text Input)
+User (Voice)
         │
         ▼
-  Orchestrator Agent (Pydantic AI)
+  Browser — React + Vite (frontend/)
+  AudioRecorder → PCM16 base64 → WebSocket (ws://localhost:8765)
         │
-        ├──▶ Sub-Agent 1 (Email Sending)
-        ├──▶ Sub-Agent 2 (Calendar Setting (Scheduling))
-        ├──▶ Sub-Agent 3 (Doing Google Search)
-        └──▶ Sub-Agent N (Zalo)
-                │
-                ▼
-        Executable Actions (Pre-defined & Controlled)
+        ▼
+  Python WebSocket Bridge (server.py)
+  ├── Proxies audio ↔ OpenAI Realtime API (wss://api.openai.com)
+  ├── Streams audio back to browser
+  ├── Handles STOP voice command (cancels response mid-stream)
+  ├── Tracks conversation history {User, desir} per session
+  └── Single dispatch() → Orchestrator for all tool calls
+        │
+        ▼
+  OpenAI Realtime API  (gpt-4o-mini-realtime-preview)
+  ├── Server VAD — detects speech start/end automatically
+  ├── Whisper — transcribes user speech
+  ├── Generates audio response + transcripts
+  └── Calls tools: send_email | search_web | search_contact |
+                   send_imessage | make_call |
+                   changeThemeColor | update_daily_tasks
+        │
+        │  Tool call → server.py dispatch()
+        ▼
+  Orchestrator Agent  (ai/agents/orchestrator.py, Pydantic AI)
+  ├── Reads orchestrator.md system prompt
+  ├── Receives full tool args as JSON from server.py
+  ├── Routes to the correct sub-agent via delegation tools
+  └── Returns response string back to OpenAI Realtime
+        │
+        ├──▶ agent1.py — Email Agent
+        │    ├── send_email (notification HTML or plain user_request)
+        │    │   └── tools/sending_email.py → Resend API
+        │    └── register_domain → Resend Domains API
+        │
+        ├──▶ agent2.py — Calendar Agent
+        │    └── schedule_event → macOS Calendar (AppleScript)
+        │
+        ├──▶ agent3.py — Search Agent
+        │    └── search_web → Serper API (Google Search)
+        │
+        └──▶ agent4.py — Communication Agent
+             ├── send_imessage → macOS Messages (AppleScript)
+             └── make_call → macOS FaceTime / Phone
+
+Frontend-only tools (forwarded directly to browser, no server logic):
+  changeThemeColor   — updates holographic UI color
+  update_daily_tasks — updates task list on the interface
+
+Observability:
+  Logfire — traces every session via logfire.span("session")
+
+Deps injected per session (OrchestratorDeps):
+  history_context   — rolling conversation turns {User, desir}
+  email_address     — tomnguyen6766@gmail.com
+  search_api_key    — Serper API key
+  tom_history_context — static biographical context (tombio.md)
 ```
 
 ---
@@ -57,23 +103,18 @@ User (Voice / Text Input)
 ### Prerequisites
 
 - Python 3.13+
-- [uv](https://docs.astral.sh/uv/) — fast Python package and project manager
-- LLM API access (e.g., Claude, GPT, or local model)
-- [Logfire](https://logfire.pydantic.dev) account for observability
+- Node.js 18+
+- [uv](https://docs.astral.sh/uv/) — Python package manager
+- OpenAI API key (with Realtime API access)
+- [Resend](https://resend.com) API key (email)
+- [Serper](https://serper.dev) API key (web search)
+- [Logfire](https://logfire.pydantic.dev) token (observability)
 
 ### Install uv
 
-**macOS / Linux:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-
-**Windows:**
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-After installation, restart your terminal so the `uv` command is available.
 
 ### Installation
 
@@ -81,23 +122,41 @@ After installation, restart your terminal so the `uv` command is available.
 git clone https://github.com/DuongAnh1201/desir.git
 cd desir
 uv sync
+cd frontend && npm install
 ```
 
-`uv sync` reads `pyproject.toml`, creates a `.venv`, and installs all dependencies automatically.
+### Environment Variables
 
-### Logfire Setup
+Create a `.env` file in the project root:
 
-Authenticate with your Logfire account before running:
+```env
+OPENAI_API_KEY=sk-...
+AI_MODEL=openai:gpt-4o-mini
+REALTIME_MODEL=gpt-4o-mini-realtime-preview
+REALTIME_VOICE=coral
 
+RESEND_API_KEY=re_...
+RESEND_FROM=Desir <you@yourdomain.com>
+
+SERPER_API_KEY=...
+
+LOGFIRE_TOKEN=...
+LOGFIRE_ENVIRONMENT=local
+```
+
+### Running
+
+**Terminal 1 — Python backend:**
 ```bash
-logfire --region us auth
+uv run python server.py
 ```
 
-### Running the Prototype
-
+**Terminal 2 — Frontend:**
 ```bash
-desir
+cd frontend && npm run dev
 ```
+
+Open `http://localhost:5173`, click the power button, and speak.
 
 ---
 

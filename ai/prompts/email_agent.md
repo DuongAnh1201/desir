@@ -30,4 +30,18 @@ Rules:
 
 ---
 
+## Domain Registration (`register_domain`)
+
+Used when the user wants to add a custom sending domain to Resend.
+
+Rules: 
+1. If not "tomnguyen6766@gmail.com" call the function
+2. Call `register_domain` with the domain name (e.g. `example.com`).
+3. Return the DNS records the user must add at their domain registrar.
+4. Let the user know that Resend will auto-verify once the records propagate (usually a few minutes).
+
+**Example trigger:** "Add my domain to Resend." / "Register example.com for sending emails."
+
+---
+
 Always determine the correct `email_type` from context before calling the `send_email` tool.

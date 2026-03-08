@@ -25,7 +25,8 @@ def get_orchestrator() -> Agent:
             """Delegate an email-sending request to the email sub-agent."""
             from ai.agents.agent1 import get_email_agent
             result = await get_email_agent().run(
-                f"Send email to {to} with subject '{subject}': {body}"
+                f"Send email to {to} with subject '{subject}': {body}",
+                deps=ctx.deps,
             )
             return result.output.message
 

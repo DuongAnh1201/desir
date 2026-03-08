@@ -1,4 +1,5 @@
 """Email sub-agent."""
+import asyncio
 from pydantic_ai import Agent, RunContext
 from ai.agents.deps import OrchestratorDeps
 from schemas.agent1 import EmailRequest, EmailResult
@@ -28,32 +29,53 @@ def get_email_agent() -> Agent:
             from config import settings
             from tools.sending_email import send_notification_email, send_user_email
 
-            password = settings.email_password
+            api_key = settings.resend_api_key
+            from_address = settings.resend_from
 
             if request.email_type == "notification":
                 n = request.notification
-                success = send_notification_email(
+                result = await asyncio.to_thread(
+                    send_notification_email,
                     recipient=n.to,
                     subject=n.subject,
                     details=n.details,
                     link=n.link,
                     sender_name=n.sender_name,
-                    password=password,
+                    api_key=api_key,
+                    from_address=from_address,
                 )
                 target = n.to
             else:
                 u = request.user_request
-                success = send_user_email(
+                result = await asyncio.to_thread(
+                    send_user_email,
                     recipient=u.to,
                     subject=u.subject,
                     body=u.body,
-                    password=password,
+                    api_key=api_key,
+                    from_address=from_address,
                 )
                 target = u.to
 
-            if success:
+            if result == "ok":
                 return f"Email successfully sent to {target}."
             else:
-                return f"Failed to send email to {target}."
+                return f"Failed to send email to {target}. Do not retry. Reason: {result}"
+
+        @_email_agent.tool
+        async def register_domain(ctx: RunContext[OrchestratorDeps], domain_name: str) -> str:
+            """Register a sending domain with Resend and return the DNS records to configure."""
+            from tools.sending_email import add_domain
+            try:
+                domain = await asyncio.to_thread(add_domain, domain_name)
+                records = domain.records if hasattr(domain, "records") else domain.get("records", [])
+                lines = [f"Domain '{domain_name}' added (ID: {domain.id if hasattr(domain, 'id') else domain.get('id')})."]
+                lines.append("Add these DNS records at your registrar:")
+                for r in records:
+                    rec = r if isinstance(r, dict) else vars(r)
+                    lines.append(f"  {rec.get('type')} {rec.get('name')} → {rec.get('value')}")
+                return "\n".join(lines)
+            except Exception as e:
+                return f"Failed to register domain: {e}"
 
     return _email_agent
