@@ -139,16 +139,16 @@ async def session_handler(browser_ws: WebSocketServerProtocol) -> None:
     # Conversation history — passed as context to the orchestrator each call
     history: list[dict[str, str]] = []
 
-    def _deps() -> OrchestratorDeps:
-        return OrchestratorDeps(
-            search_api_key=settings.serper_api_key,
-            history_context={"turns": history},
-        )
+    # Single deps object per session — mutable state (history, event IDs) persists across calls
+    deps = OrchestratorDeps(
+        search_api_key=settings.serper_api_key,
+        history_context={"turns": history},
+    )
 
     # ── Single dispatcher — pass all args to the orchestrator as-is ──────────
     async def dispatch(tool_name: str, args: dict) -> str:
         prompt = f"{tool_name}: {json.dumps(args, ensure_ascii=False)}"
-        result = await get_orchestrator().run(prompt, deps=_deps())
+        result = await get_orchestrator().run(prompt, deps=deps)
         return result.output.response
 
     # ── Connect to OpenAI Realtime ─────────────────────────────────────────────
@@ -323,6 +323,7 @@ async def main() -> None:
         environment=settings.env,
         service_name="desir",
     )
+    logfire.instrument_pydantic_ai()
     def handle_http(connection, request):
         if request.headers.get("upgrade", "").lower() != "websocket":
             return connection.respond(http.HTTPStatus.OK, "Desir WebSocket server\n")
