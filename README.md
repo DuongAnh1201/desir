@@ -34,46 +34,123 @@ Our potential users are those who seek to move beyond traditional chatbots and d
 ## Architecture Overview
 
 ```
-User (Voice / Text Input)
+User (Voice)
         │
         ▼
-  Orchestrator Agent (Pydantic AI)
+  Browser — React + Vite (frontend/)
+  AudioRecorder → PCM16 base64 → WebSocket (ws://localhost:8765)
         │
-        ├──▶ Sub-Agent 1 (Email Sending)
-        ├──▶ Sub-Agent 2 (Calendar Setting (Scheduling))
-        ├──▶ Sub-Agent 3 (Doing Google Search)
-        └──▶ Sub-Agent N (Zalo)
-                │
-                ▼
-        Executable Actions (Pre-defined & Controlled)
+        ▼
+  Python WebSocket Bridge (server.py)
+  ├── Proxies audio ↔ OpenAI Realtime API (wss://api.openai.com)
+  ├── Streams audio back to browser
+  ├── Handles STOP voice command (cancels response mid-stream)
+  ├── Tracks conversation history {User, desir} per session
+  └── Single dispatch(tool_name, args) → Orchestrator for all server-side tool calls
+        │
+        ▼
+  OpenAI Realtime API  (gpt-4o-mini-realtime-preview)
+  ├── Server VAD — detects speech start/end automatically
+  ├── Whisper — transcribes user speech
+  ├── Generates audio response + transcripts
+  └── Calls tools: send_email | schedule_event | search_web |
+                   search_contact | send_imessage | make_call |
+                   changeThemeColor | update_daily_tasks
+        │
+        │  Tool call → server.py dispatch(tool_name, args)
+        │  Prompt format: "<tool_name>: <args as JSON>"
+        ▼
+  Orchestrator Agent  (ai/agents/orchestrator.py, Pydantic AI)
+  ├── System prompt: ai/prompts/orchestrator.md
+  ├── Receives tool_name + full args JSON as a natural-language prompt
+  ├── Routes to the correct sub-agent via delegation tools
+  ├── Injects OrchestratorDeps (history, email address, API keys, event IDs)
+  └── Returns response string → server.py → OpenAI Realtime → audio to user
+        │
+        ├──▶ delegate_email(to, subject, body)
+        │         └── agent1.py — Email Agent
+        │               ├── send_email(EmailRequest)
+        │               │     email_type="notification" → styled HTML template
+        │               │     email_type="user_request" → plain-text message
+        │               │     └── tools/sending_email.py → Resend API
+        │               └── register_domain(domain_name) → Resend Domains API
+        │
+        ├──▶ delegate_calendar(request)
+        │         └── agent2.py — Calendar Agent
+        │               ├── list_calendars()
+        │               │     └── tools/calendar.py → accli calendars --json
+        │               ├── create_calendar_event(CalendarRequest)
+        │               │     └── tools/calendar.py → accli create ...
+        │               ├── update_calendar_event(CalendarRequest)
+        │               │     └── tools/calendar.py → accli update <id>
+        │               ├── delete_calendar_event(CalendarRequest)
+        │               │     └── tools/calendar.py → accli delete <id>
+        │               └── check_freebusy(CalendarRequest)
+        │                     └── tools/calendar.py → accli freebusy ...
+        │               * Event IDs saved in OrchestratorDeps.calendar_event_ids
+        │               * Falls back to tomnguyen6766@gmail.com calendar
+        │
+        ├──▶ delegate_search(query)
+        │         └── agent3.py — Search Agent
+        │               └── search_web(query)
+        │                     └── Serper API (Google Search) → summary
+        │
+        └──▶ delegate_communication(recipient, action, message)
+                  └── agent4.py — Communication Agent
+                        ├── send_imessage → macOS Messages (AppleScript)
+                        └── make_call → macOS FaceTime / Phone
+
+Frontend-only tools (forwarded directly to browser, no server or agent logic):
+  changeThemeColor   — updates holographic UI color in real time
+  update_daily_tasks — updates task list displayed on the interface
+
+Observability:
+  Logfire — traces every session via logfire.span("session")
+
+Session state injected per call (OrchestratorDeps):
+  history_context      — rolling conversation turns {User, desir}
+  email_address        — tomnguyen6766@gmail.com
+  search_api_key       — Serper API key
+  tom_history_context  — static biographical context (ai/prompts/tombio.md)
+  calendar_event_ids   — dict mapping event title → accli event ID, persists
+                         across tool calls within a session so the agent can
+                         update or delete events it created earlier
 ```
+
+### How a tool call flows end-to-end
+
+1. User speaks → OpenAI Realtime transcribes and detects intent.
+2. Realtime calls a tool (e.g. `schedule_event`) with structured arguments.
+3. `server.py` receives `response.function_call_arguments.done` and calls `dispatch(tool_name, args)`.
+4. `dispatch` builds the prompt `"schedule_event: {"title": "...", "when": "..."}"` and runs the Orchestrator.
+5. The Orchestrator reads its system prompt, identifies the intent as "calendar", and calls `delegate_calendar(request=...)`.
+6. `delegate_calendar` appends any known event IDs from `deps.calendar_event_ids`, then runs the Calendar Agent.
+7. The Calendar Agent picks the right tool (`create_calendar_event`, etc.) and calls `tools/calendar.py` via `asyncio.to_thread`.
+8. `tools/calendar.py` shells out to `accli`, which writes to macOS Calendar.
+9. The result bubbles back up: Calendar Agent → Orchestrator → `dispatch` → `server.py` → OpenAI Realtime → spoken response to user.
 
 ---
 
 ## Getting Started
 
-> ⚠️ This project is currently in the **prototype stage**. Setup instructions will be updated as development progresses.
+> ⚠️ This project is currently in the **prototype stage** and runs on macOS only (calendar and communication tools use macOS-native APIs).
 
 ### Prerequisites
 
 - Python 3.13+
-- [uv](https://docs.astral.sh/uv/) — fast Python package and project manager
-- LLM API access (e.g., Claude, GPT, or local model)
-- [Logfire](https://logfire.pydantic.dev) account for observability
+- Node.js 18+
+- [uv](https://docs.astral.sh/uv/) — Python package manager
+- [accli](https://www.npmjs.com/package/@joargp/accli) — macOS Calendar CLI (`sudo npm i -g @joargp/accli`, then `accli setup`)
+- OpenAI API key (with Realtime API access)
+- [Resend](https://resend.com) API key (email)
+- [Serper](https://serper.dev) API key (web search)
+- [Logfire](https://logfire.pydantic.dev) token (observability)
 
 ### Install uv
 
-**macOS / Linux:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-
-**Windows:**
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-After installation, restart your terminal so the `uv` command is available.
 
 ### Installation
 
@@ -81,32 +158,107 @@ After installation, restart your terminal so the `uv` command is available.
 git clone https://github.com/DuongAnh1201/desir.git
 cd desir
 uv sync
+cd frontend && npm install
 ```
 
-`uv sync` reads `pyproject.toml`, creates a `.venv`, and installs all dependencies automatically.
-
-### Logfire Setup
-
-Authenticate with your Logfire account before running:
+### Calendar setup (macOS)
 
 ```bash
-logfire --region us auth
+sudo npm i -g @joargp/accli
+accli setup   # grant Calendar access when prompted in System Settings
 ```
 
-### Running the Prototype
+### Environment Variables
 
+Create a `.env` file in the project root:
+
+```env
+OPENAI_API_KEY=sk-...
+AI_MODEL=openai:gpt-4o-mini
+REALTIME_MODEL=gpt-4o-mini-realtime-preview
+REALTIME_VOICE=coral
+
+RESEND_API_KEY=re_...
+RESEND_FROM=Desir <you@yourdomain.com>
+
+SERPER_API_KEY=...
+
+LOGFIRE_TOKEN=...
+LOGFIRE_ENVIRONMENT=local
+```
+
+### Running
+
+**Terminal 1 — Python backend:**
 ```bash
-desir
+uv run python server.py
+```
+
+**Terminal 2 — Frontend:**
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173`, click the power button, and speak.
+
+---
+
+## Project Structure
+
+```
+desir/
+├── server.py                  # WebSocket bridge — browser ↔ OpenAI Realtime
+├── config.py                  # Settings loaded from .env
+│
+├── ai/
+│   ├── agents/
+│   │   ├── deps.py            # OrchestratorDeps dataclass (session state)
+│   │   ├── orchestrator.py    # Orchestrator agent + delegation tools
+│   │   ├── agent1.py          # Email agent
+│   │   ├── agent2.py          # Calendar agent
+│   │   ├── agent3.py          # Search agent
+│   │   └── agent4.py          # Communication agent
+│   └── prompts/
+│       ├── orchestrator.md    # Orchestrator routing rules
+│       ├── realtime_session.md # OpenAI Realtime system prompt
+│       ├── email_agent.md     # Email agent instructions
+│       ├── calendar_agent.md  # Calendar agent instructions
+│       ├── search_agent.md    # Search agent instructions
+│       └── tombio.md          # User biographical context
+│
+├── tools/
+│   ├── sending_email.py       # Resend API wrappers
+│   └── calendar.py            # accli CLI wrappers for macOS Calendar
+│
+├── schemas/
+│   ├── orchestrator.py        # OrchestratorResult
+│   ├── agent1.py              # EmailRequest, EmailResult
+│   ├── agent2.py              # CalendarRequest, CalendarResult
+│   ├── agent3.py              # SearchResult
+│   └── agent4.py              # CommunicationResult
+│
+└── frontend/                  # React + Vite holographic UI
 ```
 
 ---
 
 ## Roadmap
 
-- [x] Define base permission execution structure
-- [x] Set up orchestrator and sub-agent schemas (Pydantic AI)
-- [x] Implement voice recognition interface
-- [ ] Integrate LLM reasoning engine with delegation model
+- [x] Orchestrator + sub-agent delegation model (Pydantic AI)
+- [x] OpenAI Realtime API voice interface (native audio streaming)
+- [x] Python WebSocket bridge (browser ↔ OpenAI ↔ agents)
+- [x] Single `dispatch()` — all tool calls routed through the orchestrator
+- [x] STOP voice command — interrupt response mid-stream
+- [x] Conversation history tracking per session
+- [x] Email agent — Resend API (notification HTML + plain user request)
+- [x] Email domain registration — Resend Domains API
+- [x] Search agent — Serper API (Google Search)
+- [x] Communication agent — iMessage + phone call (macOS)
+- [x] Observability — Logfire session tracing
+- [x] React + Vite frontend with holographic UI
+- [x] Calendar agent — create, update, delete, free/busy via accli + macOS Calendar
+- [x] Calendar event ID persistence within session (update/delete by name)
+- [ ] Custom domain email sending (Resend domain verification flow)
 - [ ] Expand sub-agent action library
 - [ ] User testing and feedback
 

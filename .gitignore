@@ -7,17 +7,34 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+*.pyo
+*.pyd
+.Python
 
 # Logfire credentials
 logfire.config.json
+.logfire/
 
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# uv
+uv.lock
