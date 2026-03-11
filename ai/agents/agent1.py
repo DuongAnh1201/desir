@@ -34,17 +34,10 @@ def get_email_agent() -> Agent:
 
             if request.email_type == "notification":
                 n = request.notification
-                result = await asyncio.to_thread(
-                    send_notification_email,
-                    recipient=n.to,
-                    subject=n.subject,
-                    details=n.details,
-                    link=n.link,
-                    sender_name=n.sender_name,
-                    api_key=api_key,
-                    from_address=from_address,
-                )
-                target = n.to
+                n.api_key = api_key
+                n.from_address = from_address
+                result = await asyncio.to_thread(send_notification_email, n)
+                target = n.recipient
             else:
                 u = request.user_request
                 result = await asyncio.to_thread(

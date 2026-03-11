@@ -21,13 +21,15 @@ def get_orchestrator() -> Agent:
         )
 
         @_orchestrator.tool
-        async def delegate_email(ctx, to: str, subject: str, body: str) -> str:
-            """Delegate an email-sending request to the email sub-agent."""
+        async def delegate_email(ctx, to: str, subject: str, body: str, email_type: str = "user_request", link: str = "") -> str:
+            """Delegate an email-sending request to the email sub-agent.
+            email_type must be 'notification' (styled HTML) or 'user_request' (plain text).
+            """
             from ai.agents.agent1 import get_email_agent
-            result = await get_email_agent().run(
-                f"Send email to {to} with subject '{subject}': {body}",
-                deps=ctx.deps,
-            )
+            prompt = f"Send a {email_type} email to {to} with subject '{subject}': {body}"
+            if link:
+                prompt += f"\nLink: {link}"
+            result = await get_email_agent().run(prompt, deps=ctx.deps)
             return result.output.message
 
         @_orchestrator.tool

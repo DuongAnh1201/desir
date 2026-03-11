@@ -1,7 +1,6 @@
 import resend
 from config import settings
-
-
+from schemas.agent1 import NotificationEmailRequest
 def _get_client(api_key: str = "") -> None:
     resend.api_key = api_key or settings.resend_api_key
 
@@ -14,25 +13,20 @@ def add_domain(domain_name: str) -> dict:
     return domain
 
 
-def send_notification_email(
-    recipient: str,
-    subject: str,
-    details: str,
-    link: str = "",
-    sender_name: str = "Desir",
-    api_key: str = "",
-    from_address: str = "Desir <onboarding@resend.dev>",
-) -> str:
+def send_notification_email(arg: NotificationEmailRequest) -> str:
     """Send a styled HTML notification email via Resend. Returns 'ok' or an error message."""
-    _get_client(api_key)
-    html = _build_notification_html(details, link, sender_name)
+    _get_client(arg.api_key)
+    html = _build_notification_html(arg.details, arg.link, arg.sender_name)
+    payload = {
+        "from": arg.from_address,
+        "to": [arg.recipient],
+        "subject": arg.subject,
+        "html": html,
+    }
+    if arg.scheduleAt:
+        payload["scheduleAt"] = arg.scheduleAt
     try:
-        resend.Emails.send({
-            "from": from_address,
-            "to": [recipient],
-            "subject": subject,
-            "html": html,
-        })
+        resend.Emails.send(payload)
         return "ok"
     except Exception as e:
         return str(e)

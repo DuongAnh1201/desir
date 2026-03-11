@@ -3,14 +3,16 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+
 class NotificationEmailRequest(BaseModel):
-    to: str
+    recipient: str
     subject: str
     details: str
-    """AI-generated content describing the notification."""
     link: str = ""
-    """Optional call-to-action link."""
     sender_name: str = "Desir"
+    api_key: str = ""
+    from_address: str = "Desir <onboarding@resend.dev>"
+    scheduleAt: str | None = None
 
 
 class UserEmailRequest(BaseModel):
