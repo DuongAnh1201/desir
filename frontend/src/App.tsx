@@ -6,7 +6,8 @@ import { AudioRecorder, AudioStreamer } from './service/audioService';
 import { Power, Settings, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const WS_URL = 'ws://localhost:8765';
+const WS_URL =
+  import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8765`;
 
 export default function App() {
   const [state, setState] = useState<AssistantState>(INITIAL_STATE);

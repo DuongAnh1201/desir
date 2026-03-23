@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: .
+    env_file: .env
+    environment:
+      - DESIR_HOST=0.0.0.0
+      - DESIR_PORT=8765
+    ports:
+      - "8765:8765"
+    volumes:
+      - .:/app
+      - backend_venv:/app/.venv
+    command: ["uv", "run", "--frozen", "python", "-m", "watchfiles", "python server.py", "/app"]
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      - CHOKIDAR_USEPOLLING=1
+      - VITE_WS_URL=ws://localhost:8765
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+volumes:
+  backend_venv:
+  frontend_node_modules:
