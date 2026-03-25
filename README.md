@@ -201,6 +201,18 @@ cd frontend && npm run dev
 
 Open `http://localhost:5173`, click the power button, and speak.
 
+### Docker (Local Dev)
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:5173`.
+
+Notes:
+- macOS-only tools (Calendar, iMessage, calls) do not work inside Docker containers.
+- Backend auto-restarts on code changes via `watchfiles`; frontend uses Vite HMR.
+
 ---
 
 ## Project Structure

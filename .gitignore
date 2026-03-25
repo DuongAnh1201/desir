@@ -38,3 +38,6 @@ frontend/.vite/
 
 # uv
 uv.lock
+.gitnexus
+.codex
+/AGENTS.md

@@ -324,12 +324,14 @@ async def main() -> None:
         service_name="desir",
     )
     logfire.instrument_pydantic_ai()
+    host = os.getenv("DESIR_HOST", "0.0.0.0")
+    port = int(os.getenv("DESIR_PORT", "8765"))
     def handle_http(connection, request):
         if request.headers.get("upgrade", "").lower() != "websocket":
             return connection.respond(http.HTTPStatus.OK, "Desir WebSocket server\n")
 
-    print("Desir server running on ws://localhost:8765")
-    async with websockets.serve(session_handler, "localhost", 8765, process_request=handle_http):
+    print(f"Desir server running on ws://{host}:{port}")
+    async with websockets.serve(session_handler, host, port, process_request=handle_http):
         await asyncio.Future()
 
 
