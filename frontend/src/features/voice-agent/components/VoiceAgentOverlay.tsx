@@ -2,6 +2,7 @@ import {CSSProperties} from 'react';
 import {ApprovalRequest, AgentUIState, TimelineStep, VoiceAgentCapability} from '../types/voiceAgent.types';
 import {CapabilityPanel} from './CapabilityPanel';
 import {ConversationPanel} from './ConversationPanel';
+import {DailyTasksPanel} from './DailyTasksPanel';
 import {ExecutionTimeline} from './ExecutionTimeline';
 import {VoiceAgentHeader} from './VoiceAgentHeader';
 import {VoiceCommandBar} from './VoiceCommandBar';
@@ -12,6 +13,7 @@ export function VoiceAgentOverlay({
   timelineSteps,
   approvalRequest,
   capabilities,
+  tasks,
   jobId,
   hintText,
   editStubMessage,
@@ -26,6 +28,7 @@ export function VoiceAgentOverlay({
   timelineSteps: TimelineStep[];
   approvalRequest: ApprovalRequest | null;
   capabilities: VoiceAgentCapability[];
+  tasks: string[];
   jobId: string;
   hintText: string;
   editStubMessage: string | null;
@@ -64,7 +67,10 @@ export function VoiceAgentOverlay({
               onEdit={onEdit}
               onCancel={onCancel}
             />
-            <CapabilityPanel capabilities={capabilities} />
+            <div className="flex min-h-[280px] flex-col border-t xl:border-l xl:border-t-0" style={{borderColor: 'var(--voice-agent-border)'}}>
+              <CapabilityPanel capabilities={capabilities} />
+              <DailyTasksPanel tasks={tasks} />
+            </div>
           </div>
         </main>
 
