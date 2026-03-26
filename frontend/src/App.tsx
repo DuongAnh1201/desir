@@ -223,7 +223,6 @@ export default function App() {
       timelineSteps={voiceAgentState.timelineSteps}
       approvalRequest={voiceAgentState.approvalRequest}
       capabilities={voiceAgentState.capabilities}
-      tasks={runtimeState.tasks}
       jobId={voiceAgentState.jobId}
       hintText={voiceAgentState.errorMessage ?? voiceAgentState.hintText}
       editStubMessage={voiceAgentState.editStubMessage}
