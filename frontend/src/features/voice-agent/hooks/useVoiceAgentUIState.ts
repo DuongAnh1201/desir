@@ -140,6 +140,10 @@ function createInitialState(
   };
 }
 
+function createListeningTimeline(flow: VoiceAgentFlow): TimelineStep[] {
+  return [createTimelineStep(flow, 0, 'active')];
+}
+
 function formatTranscriptPreview(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -366,16 +370,19 @@ function completeCommand(
   state: VoiceAgentReducerState,
   hintText: string,
 ): VoiceAgentReducerState {
+  const listeningFlow = state.activeFlow ?? resolveMockVoiceFlow('');
+
   return {
     ...state,
-    uiState: 'completed',
+    uiState: 'listening',
     hintText,
     errorMessage: null,
     editStubMessage: null,
     capabilities: upsertCompletedCapabilities(state.capabilities, state.pendingToolCalls),
-    activeFlow: null,
-    activeStepIndex: -1,
+    timelineSteps: createListeningTimeline(listeningFlow),
     approvalRequest: null,
+    activeFlow: listeningFlow,
+    activeStepIndex: 0,
     pendingToolCalls: [],
   };
 }
@@ -433,6 +440,9 @@ function withErrorState(
 function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): VoiceAgentReducerState {
   switch (action.type) {
     case 'BEGIN_LISTENING':
+      {
+        const flow = state.activeFlow ?? resolveMockVoiceFlow('');
+
       return {
         ...state,
         uiState: 'listening',
@@ -444,21 +454,29 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
         errorMessage: null,
         editStubMessage: null,
         approvalRequest: null,
-        timelineSteps: state.isSessionActive ? state.timelineSteps : [],
+        timelineSteps: createListeningTimeline(flow),
         capabilities: state.isSessionActive
           ? state.capabilities
           : cloneCapabilities(state.baseCapabilities),
         command: state.isSessionActive ? state.command : null,
         jobId: state.isSessionActive ? state.jobId : 'JOB_ID: -- ----',
-        activeFlow: state.isSessionActive ? state.activeFlow : null,
-        activeStepIndex: state.isSessionActive ? state.activeStepIndex : -1,
+        activeFlow: flow,
+        activeStepIndex: 0,
       };
+      }
     case 'SESSION_CONNECTED':
+      {
+        const flow = state.activeFlow ?? resolveMockVoiceFlow('');
+
       return {
         ...state,
         isSessionActive: true,
-        uiState: state.uiState === 'idle' ? 'listening' : state.uiState,
+        uiState: 'listening',
+        timelineSteps: createListeningTimeline(flow),
+        activeFlow: flow,
+        activeStepIndex: 0,
       };
+      }
     case 'SESSION_STOPPED':
       return createInitialState(state.baseCapabilities);
     case 'INGEST_EVENT': {
@@ -472,17 +490,21 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
             return state;
           }
 
-          if (!event.speaking && state.activeFlow === null && state.isSessionActive) {
+          if (!event.speaking && state.isSessionActive) {
             const capabilities =
               state.pendingToolCalls.length > 0
                 ? upsertCompletedCapabilities(state.capabilities, state.pendingToolCalls)
                 : resetActiveCapabilities(state.capabilities);
+            const flow = state.activeFlow ?? resolveMockVoiceFlow('');
 
             return {
               ...state,
               uiState: 'listening',
               hintText: 'Awaiting live instruction...',
+              timelineSteps: createListeningTimeline(flow),
               capabilities,
+              activeFlow: flow,
+              activeStepIndex: 0,
               pendingToolCalls: [],
             };
           }
@@ -508,14 +530,14 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
 
           return {
             ...state,
-            uiState: flow.steps[0].phase,
+            uiState: 'listening',
             transcriptPreview: formatTranscriptPreview(command.rawText),
-            timelineSteps: [createTimelineStep(flow, 0, 'active')],
+            timelineSteps: createListeningTimeline(flow),
             approvalRequest: null,
             capabilities: resetActiveCapabilities(state.capabilities),
             command,
             jobId: command.jobId,
-            hintText: 'Visualizing intent...',
+            hintText: 'Listening to user intent...',
             errorMessage: null,
             editStubMessage: null,
             activeFlow: flow,
@@ -574,9 +596,9 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
         case 'approval_requested':
           return {
             ...state,
-            uiState: 'waiting_approval',
-            approvalRequest: event.request,
-            hintText: 'Awaiting approval to continue.',
+            uiState: 'listening',
+            approvalRequest: null,
+            hintText: 'Listening to user intent...',
           };
         case 'approval_resolved':
           return reducer(state, {
@@ -593,127 +615,20 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
       }
     }
     case 'ADVANCE_FLOW': {
-      if (!state.activeFlow || state.activeStepIndex < 0) {
-        return state;
-      }
-
-      const currentStepIndex = state.activeStepIndex;
-      const nextTimelineSteps = state.timelineSteps.map((step, index) =>
-        index === currentStepIndex
-          ? {
-              ...step,
-              status: 'completed',
-              badgeLabel: badgeLabelForStatus('completed'),
-            }
-          : step,
-      );
-
-      const nextStepIndex = currentStepIndex + 1;
-      if (nextStepIndex >= state.activeFlow.steps.length) {
-        return {
-          ...completeCommand(state, 'Ready for the next instruction.'),
-          timelineSteps: nextTimelineSteps,
-        };
-      }
-
-      const nextStepTemplate = state.activeFlow.steps[nextStepIndex];
-      const nextStepStatus: TimelineStepStatus = nextStepTemplate.waitForApproval
-        ? 'waiting_approval'
-        : 'active';
-      const nextStep = createTimelineStep(state.activeFlow, nextStepIndex, nextStepStatus);
-
-      return {
-        ...state,
-        uiState: nextStepTemplate.phase,
-        timelineSteps: [...nextTimelineSteps, nextStep],
-        approvalRequest: nextStepTemplate.waitForApproval
-          ? state.activeFlow.approvalRequest
-          : null,
-        hintText: nextStepTemplate.waitForApproval
-          ? 'Awaiting approval to continue.'
-          : 'Visualizing intent...',
-        editStubMessage: null,
-        activeStepIndex: nextStepIndex,
-      };
+      return state;
     }
     case 'RESOLVE_APPROVAL': {
-      if (!state.activeFlow || state.activeStepIndex < 0) {
-        return state;
-      }
-
-      if (action.decision === 'edited') {
-        return {
-          ...state,
-          uiState: 'waiting_approval',
-          editStubMessage: 'Edit requested. Connect this action to a backend revision flow later.',
-          hintText: 'Approval remains paused until an edited request is submitted.',
-        };
-      }
-
-      if (action.decision === 'cancelled') {
-        const blockedExistingSteps = state.timelineSteps.map((step, index) =>
-          index >= state.activeStepIndex
-            ? {
-                ...step,
-                status: 'blocked',
-                badgeLabel: badgeLabelForStatus('blocked'),
-              }
-            : step,
-        );
-        const remainingBlockedSteps = state.activeFlow.steps
-          .slice(state.activeStepIndex + 1)
-          .map((_, offset) =>
-            createTimelineStep(
-              state.activeFlow as VoiceAgentFlow,
-              state.activeStepIndex + 1 + offset,
-              'blocked',
-            ),
-          );
-
-        return {
-          ...state,
-          uiState: 'idle',
-          approvalRequest: null,
-          editStubMessage: null,
-          hintText: 'Request cancelled. Awaiting next instruction.',
-          timelineSteps: [...blockedExistingSteps, ...remainingBlockedSteps],
-          activeFlow: null,
-          activeStepIndex: -1,
-          capabilities: resetActiveCapabilities(state.capabilities),
-          pendingToolCalls: [],
-        };
-      }
-
-      const nextTimelineSteps = state.timelineSteps.map((step, index) =>
-        index === state.activeStepIndex
-          ? {
-              ...step,
-              status: 'completed',
-              badgeLabel: badgeLabelForStatus('completed'),
-            }
-          : step,
-      );
-      const nextStepIndex = state.activeStepIndex + 1;
-      if (nextStepIndex >= state.activeFlow.steps.length) {
-        return {
-          ...completeCommand(state, 'Ready for the next instruction.'),
-          approvalRequest: null,
-          editStubMessage: null,
-          timelineSteps: nextTimelineSteps,
-        };
-      }
-
-      const nextStepTemplate = state.activeFlow.steps[nextStepIndex];
-      const nextStep = createTimelineStep(state.activeFlow, nextStepIndex, 'active');
+      const listeningFlow = state.activeFlow ?? resolveMockVoiceFlow('');
 
       return {
         ...state,
-        uiState: nextStepTemplate.phase,
+        uiState: 'listening',
         approvalRequest: null,
         editStubMessage: null,
-        hintText: 'Execution resumed.',
-        timelineSteps: [...nextTimelineSteps, nextStep],
-        activeStepIndex: nextStepIndex,
+        hintText: 'Listening to user intent...',
+        timelineSteps: createListeningTimeline(listeningFlow),
+        activeFlow: listeningFlow,
+        activeStepIndex: 0,
       };
     }
     default:
@@ -740,7 +655,7 @@ export function useVoiceAgentUIState(
     }
 
     const currentTemplate = state.activeFlow.steps[state.activeStepIndex];
-    if (!currentTemplate || currentTemplate.waitForApproval || !currentTemplate.autoAdvanceMs) {
+    if (!currentTemplate || !currentTemplate.autoAdvanceMs) {
       return undefined;
     }
 
