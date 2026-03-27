@@ -1,0 +1,1 @@
+#POST /ai/chat, /ai/complete — provider-agnostic
