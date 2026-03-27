@@ -1,0 +1,1 @@
+#manages the WS connection to MCP server
