@@ -31,6 +31,7 @@ dependencies = [
     "resend>=2.23.0",
     "resen>=2021.1.0",
     "watchfiles>=0.22.0",
+    "fastapi>=0.135.2",
 ]
 
 [project.scripts]

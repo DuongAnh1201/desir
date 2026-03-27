@@ -1,0 +1,1 @@
+#shared Depends(): current_user, db session, http client

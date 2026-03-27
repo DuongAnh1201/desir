@@ -3,6 +3,6 @@ from pydantic import BaseModel
 
 
 class OrchestratorResult(BaseModel):
-    intent: Literal["email", "calendar", "search", "zalo", "unknown"]
+    intent: Literal["email", "calendar", "search", "communication", "unknown"]
     response: str
     """Human-readable reply shown to the user."""
