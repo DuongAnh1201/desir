@@ -480,6 +480,7 @@ dependencies = [
     { name = "resen" },
     { name = "resend" },
     { name = "sounddevice" },
+    { name = "watchfiles" },
     { name = "websockets" },
 ]
 
