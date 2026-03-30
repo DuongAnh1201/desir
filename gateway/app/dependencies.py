@@ -20,10 +20,10 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer), # before the function runs, FastAPI first runs bearer.
     #bearer reads the Authorization header and returns an HTTPAuthorizationCredentials object.
     db: AsyncSession = Depends(get_db)
-    #
-) -> User:
-    user_id = decode_token(credentials.credentials)
-    user = await db.get(User, int(user_id))
+    #FastAPI also runs get_db, which opens a database session and yields it. After the request finishes, FastAPI returns to get_db and closes the session
+) -> User: #User object
+    user_id = decode_token(credentials.credentials) #Credential is the object bearer returned. It has two attributes: .scheme and .credentials
+    user = await db.get(User, int(user_id)) #db.get(Model, primary_key) is SQLAlchemy's shortcut for fetching one row by its primary key.
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return user
