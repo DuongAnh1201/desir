@@ -1,5 +1,12 @@
 import { CSSProperties } from 'react';
-import { ApprovalRequest, AgentUIState, TimelineStep, VoiceAgentCapability } from '../types/voiceAgent.types';
+import {
+  ApprovalRequest,
+  AgentUIState,
+  EmailDraftLifecycleStatus,
+  TimelineStep,
+  VoiceAgentCapability,
+} from '../types/voiceAgent.types';
+import {CapabilityDetailViewer} from './CapabilityDetailViewer';
 import { CapabilityPanel } from './CapabilityPanel';
 import { ConversationPanel } from './ConversationPanel';
 import { ExecutionTimeline } from './ExecutionTimeline';
@@ -11,30 +18,46 @@ export function VoiceAgentOverlay({
   transcriptPreview,
   timelineSteps,
   approvalRequest,
+  latestEmailDraft,
+  latestEmailDraftStatus,
   capabilities,
   jobId,
   hintText,
   editStubMessage,
+  selectedCapabilityId,
+  isCapabilityViewerOpen,
   accentColor,
   onOrbClick,
   onApprove,
-  onEdit,
   onCancel,
+  onOpenCapabilityDetail,
+  onCloseCapabilityDetail,
 }: {
   uiState: AgentUIState;
   transcriptPreview: string;
   timelineSteps: TimelineStep[];
   approvalRequest: ApprovalRequest | null;
+  latestEmailDraft: ApprovalRequest | null;
+  latestEmailDraftStatus: EmailDraftLifecycleStatus | null;
   capabilities: VoiceAgentCapability[];
   jobId: string;
   hintText: string;
   editStubMessage: string | null;
+  selectedCapabilityId: string | null;
+  isCapabilityViewerOpen: boolean;
   accentColor: string;
   onOrbClick: () => void;
-  onApprove: () => void;
-  onEdit: () => void;
+  onApprove: (draft?: NonNullable<ApprovalRequest['preview']>) => void;
   onCancel: () => void;
+  onOpenCapabilityDetail: (capabilityId: string) => void;
+  onCloseCapabilityDetail: () => void;
 }) {
+  const shouldShowCapabilityViewer =
+    isCapabilityViewerOpen &&
+    selectedCapabilityId === 'send_email' &&
+    Boolean(latestEmailDraft) &&
+    Boolean(latestEmailDraftStatus);
+
   return (
     <div
       className="min-h-screen overflow-hidden bg-(--voice-agent-shell) text-white"
@@ -44,6 +67,17 @@ export function VoiceAgentOverlay({
         } as CSSProperties
       }
     >
+      {shouldShowCapabilityViewer ? (
+        <CapabilityDetailViewer
+          request={latestEmailDraft}
+          draftStatus={latestEmailDraftStatus}
+          editStubMessage={editStubMessage}
+          onApprove={onApprove}
+          onCancel={onCancel}
+          onClose={onCloseCapabilityDetail}
+        />
+      ) : null}
+
       <div className="flex min-h-screen flex-col">
         <VoiceAgentHeader uiState={uiState} />
 
@@ -61,10 +95,13 @@ export function VoiceAgentOverlay({
               approvalRequest={approvalRequest}
               editStubMessage={editStubMessage}
               onApprove={onApprove}
-              onEdit={onEdit}
               onCancel={onCancel}
             />
-            <CapabilityPanel capabilities={capabilities} />
+            <CapabilityPanel
+              capabilities={capabilities}
+              selectedCapabilityId={selectedCapabilityId}
+              onSelectCapability={onOpenCapabilityDetail}
+            />
           </div>
         </main>
 

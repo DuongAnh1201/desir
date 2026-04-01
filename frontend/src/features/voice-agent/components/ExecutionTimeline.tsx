@@ -9,17 +9,26 @@ export function ExecutionTimeline({
   approvalRequest,
   editStubMessage,
   onApprove,
-  onEdit,
   onCancel,
 }: {
   jobId: string;
   steps: TimelineStep[];
   approvalRequest: ApprovalRequest | null;
   editStubMessage: string | null;
-  onApprove: () => void;
-  onEdit: () => void;
+  onApprove: (draft?: NonNullable<ApprovalRequest['preview']>) => void;
   onCancel: () => void;
 }) {
+  const hasApprovalStep = steps.some((step) => step.status === 'waiting_approval');
+  const fallbackApprovalStep: TimelineStep | null = approvalRequest && !hasApprovalStep
+    ? {
+        id: `${approvalRequest.id}-approval-fallback`,
+        title: approvalRequest.title,
+        subtitle: approvalRequest.summary,
+        icon: 'lock',
+        status: 'waiting_approval',
+      }
+    : null;
+
   return (
     <section className="flex min-h-[360px] flex-col bg-[var(--voice-agent-center-shell)]">
       <div
@@ -46,7 +55,7 @@ export function ExecutionTimeline({
           style={{left: voiceAgentLayoutTokens.timelinePadding + 19, backgroundColor: 'var(--voice-agent-border)'}}
         />
 
-        {steps.length === 0 ? (
+        {steps.length === 0 && !fallbackApprovalStep ? (
           <div className="relative flex h-full min-h-[240px] items-center pl-16">
             <div>
               <div className="text-[13px] font-semibold text-white">Awaiting command stream</div>
@@ -62,14 +71,25 @@ export function ExecutionTimeline({
                 {approvalRequest && step.status === 'waiting_approval' ? (
                   <ApprovalCard
                     request={approvalRequest}
+                    draftStatus="pending"
                     editStubMessage={editStubMessage}
                     onApprove={onApprove}
-                    onEdit={onEdit}
                     onCancel={onCancel}
                   />
                 ) : null}
               </ExecutionTimelineItem>
             ))}
+            {fallbackApprovalStep ? (
+              <ExecutionTimelineItem key={fallbackApprovalStep.id} step={fallbackApprovalStep}>
+                <ApprovalCard
+                  request={approvalRequest}
+                  draftStatus="pending"
+                  editStubMessage={editStubMessage}
+                  onApprove={onApprove}
+                  onCancel={onCancel}
+                />
+              </ExecutionTimelineItem>
+            ) : null}
           </div>
         )}
       </div>

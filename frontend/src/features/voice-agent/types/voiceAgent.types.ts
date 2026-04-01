@@ -16,6 +16,7 @@ export type TimelineStepStatus =
   | 'error';
 
 export type CapabilityStatus = 'connected' | 'active' | 'degraded' | 'offline';
+export type EmailDraftLifecycleStatus = 'pending' | 'approved' | 'rejected';
 
 export type VoiceAgentIconName =
   | 'desir'
@@ -60,16 +61,26 @@ export interface VoiceAgentCapability {
   metricLabel: string;
   metricValue: string;
   connectionLabel: string;
+  isInteractive?: boolean;
+  statusLabel?: string | null;
 }
 
 export interface ApprovalRequest {
   id: string;
+  toolName: string;
   title: string;
   summary: string;
   detail: string;
   approveLabel: string;
   editLabel: string;
   cancelLabel: string;
+  preview?: {
+    to: string;
+    subject: string;
+    body: string;
+    emailType: string;
+    link?: string | null;
+  } | null;
 }
 
 export interface VoiceAgentCommand {
@@ -94,6 +105,8 @@ export interface VoiceAgentViewModel {
   transcriptPreview: string;
   timelineSteps: TimelineStep[];
   approvalRequest: ApprovalRequest | null;
+  latestEmailDraft: ApprovalRequest | null;
+  latestEmailDraftStatus: EmailDraftLifecycleStatus | null;
   capabilities: VoiceAgentCapability[];
   command: VoiceAgentCommand | null;
   jobId: string;
@@ -101,6 +114,8 @@ export interface VoiceAgentViewModel {
   errorMessage: string | null;
   isSessionActive: boolean;
   editStubMessage: string | null;
+  selectedCapabilityId: string | null;
+  isCapabilityViewerOpen: boolean;
 }
 
 export type AgentEventPayload =

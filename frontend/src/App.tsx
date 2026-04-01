@@ -1,10 +1,10 @@
 import {useEffect, useRef, useState} from 'react';
 import {
   VoiceAgentOverlay,
-  createApprovalResolutionEvent,
   mapRealtimeMessageToAgentEvents,
   useVoiceAgentUIState,
 } from './features/voice-agent';
+import type {ApprovalRequest} from './features/voice-agent';
 import {AudioRecorder, AudioStreamer} from './service/audioService';
 
 const WS_URL =
@@ -54,6 +54,9 @@ export default function App() {
     markSessionConnected,
     stopSession,
     dispatchEvent,
+    resolveApproval: resolveApprovalLocally,
+    openCapabilityDetail,
+    closeCapabilityDetail,
   } = useVoiceAgentUIState();
 
   useEffect(() => {
@@ -211,9 +214,35 @@ export default function App() {
     void startAssistant();
   };
 
-  const resolveApproval = (decision: 'approved' | 'edited' | 'cancelled') => {
-    const requestId = voiceAgentState.approvalRequest?.id ?? 'local-approval';
-    dispatchEvent(createApprovalResolutionEvent(requestId, decision));
+  const resolveApproval = (
+    decision: 'approved' | 'edited' | 'cancelled',
+    draft?: NonNullable<ApprovalRequest['preview']>,
+  ) => {
+    const requestId = voiceAgentState.approvalRequest?.id;
+    if (!requestId || wsRef.current?.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const draftOverride = draft
+      ? {
+          to: draft.to,
+          subject: draft.subject,
+          body: draft.body,
+          email_type: draft.emailType,
+          link: draft.link ?? '',
+        }
+      : undefined;
+
+    wsRef.current.send(
+      JSON.stringify({
+        type: 'approval_result',
+        request_id: requestId,
+        decision,
+        draft: draftOverride,
+      }),
+    );
+
+    resolveApprovalLocally(decision, draft);
   };
 
   return (
@@ -222,15 +251,20 @@ export default function App() {
       transcriptPreview={voiceAgentState.transcriptPreview}
       timelineSteps={voiceAgentState.timelineSteps}
       approvalRequest={voiceAgentState.approvalRequest}
+      latestEmailDraft={voiceAgentState.latestEmailDraft}
+      latestEmailDraftStatus={voiceAgentState.latestEmailDraftStatus}
       capabilities={voiceAgentState.capabilities}
       jobId={voiceAgentState.jobId}
       hintText={voiceAgentState.errorMessage ?? voiceAgentState.hintText}
       editStubMessage={voiceAgentState.editStubMessage}
+      selectedCapabilityId={voiceAgentState.selectedCapabilityId}
+      isCapabilityViewerOpen={voiceAgentState.isCapabilityViewerOpen}
       accentColor={runtimeState.themeColor}
       onOrbClick={togglePower}
-      onApprove={() => resolveApproval('approved')}
-      onEdit={() => resolveApproval('edited')}
+      onApprove={(draft) => resolveApproval('approved', draft)}
       onCancel={() => resolveApproval('cancelled')}
+      onOpenCapabilityDetail={openCapabilityDetail}
+      onCloseCapabilityDetail={closeCapabilityDetail}
     />
   );
 }

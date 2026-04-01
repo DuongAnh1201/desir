@@ -1,8 +1,10 @@
 import {useEffect, useMemo, useReducer} from 'react';
 import {resolveMockVoiceFlow} from '../data/mockVoiceFlows';
 import {
+  ApprovalRequest,
   AgentEventPayload,
   CapabilityStatus,
+  EmailDraftLifecycleStatus,
   TimelineStep,
   TimelineStepStatus,
   VoiceAgentCapability,
@@ -11,6 +13,14 @@ import {
   VoiceAgentIconName,
   VoiceAgentViewModel,
 } from '../types/voiceAgent.types';
+import {
+  applyDraftOverrideToRequest,
+  approvalDecisionToDraftStatus,
+  hasPendingApproval,
+  shouldIgnoreCompletedState,
+  shouldIgnoreSpeakingState,
+  upsertEmailDraftCapability,
+} from '../utils/approvalState.js';
 
 interface UseVoiceAgentUIStateOptions {
   capabilities?: VoiceAgentCapability[];
@@ -41,7 +51,13 @@ type VoiceAgentAction =
   | {type: 'SESSION_STOPPED'}
   | {type: 'INGEST_EVENT'; event: AgentEventPayload}
   | {type: 'ADVANCE_FLOW'}
-  | {type: 'RESOLVE_APPROVAL'; decision: 'approved' | 'edited' | 'cancelled'};
+  | {
+      type: 'RESOLVE_APPROVAL';
+      decision: 'approved' | 'edited' | 'cancelled';
+      draft?: NonNullable<ApprovalRequest['preview']>;
+    }
+  | {type: 'OPEN_CAPABILITY_DETAIL'; capabilityId: string}
+  | {type: 'CLOSE_CAPABILITY_DETAIL'};
 
 const TOOL_CAPABILITY_DESCRIPTORS: Record<string, ToolCapabilityDescriptor> = {
   send_email: {
@@ -127,6 +143,8 @@ function createInitialState(
     transcriptPreview: '"Tap the orb to begin a voice session."',
     timelineSteps: [],
     approvalRequest: null,
+    latestEmailDraft: null,
+    latestEmailDraftStatus: null,
     capabilities: cloneCapabilities(capabilities),
     command: null,
     jobId: 'JOB_ID: -- ----',
@@ -134,6 +152,8 @@ function createInitialState(
     errorMessage: null,
     isSessionActive: false,
     editStubMessage: null,
+    selectedCapabilityId: null,
+    isCapabilityViewerOpen: false,
     activeFlow: null,
     activeStepIndex: -1,
     pendingToolCalls: [],
@@ -272,7 +292,7 @@ function formatToolMetricValue(name: string, args: unknown): string {
   switch (name) {
     case 'send_email': {
       const recipient = readStringArg(args, 'to');
-      return recipient ? `Sent draft to ${recipient}` : 'Sent email successfully';
+      return recipient ? `Email to ${recipient}` : 'Prepared email';
     }
     case 'schedule_event': {
       const title = readStringArg(args, 'title');
@@ -387,6 +407,61 @@ function completeCommand(
   };
 }
 
+function syncLatestEmailDraft(
+  state: VoiceAgentReducerState,
+  request: ApprovalRequest | null,
+  draftStatus: EmailDraftLifecycleStatus | null,
+): Pick<
+  VoiceAgentReducerState,
+  'latestEmailDraft' | 'latestEmailDraftStatus' | 'capabilities'
+> {
+  if (!request || !draftStatus) {
+    return {
+      latestEmailDraft: state.latestEmailDraft,
+      latestEmailDraftStatus: state.latestEmailDraftStatus,
+      capabilities: state.capabilities,
+    };
+  }
+
+  return {
+    latestEmailDraft: request,
+    latestEmailDraftStatus: draftStatus,
+    capabilities: upsertEmailDraftCapability(state.capabilities, request, draftStatus),
+  };
+}
+
+function createApprovalTimelineStep(
+  request: ApprovalRequest,
+): TimelineStep {
+  return {
+    id: `${request.id}-approval`,
+    title: request.title,
+    subtitle: request.summary,
+    icon: 'lock',
+    status: 'waiting_approval',
+    badgeLabel: badgeLabelForStatus('waiting_approval'),
+  };
+}
+
+function createApprovalTimeline(
+  steps: TimelineStep[],
+  request: ApprovalRequest,
+): TimelineStep[] {
+  const completedSteps = steps.map((step) => {
+    if (step.status === 'completed') {
+      return step;
+    }
+
+    return {
+      ...step,
+      status: 'completed',
+      badgeLabel: badgeLabelForStatus('completed'),
+    };
+  });
+
+  return [...completedSteps, createApprovalTimelineStep(request)];
+}
+
 function withErrorState(
   state: VoiceAgentReducerState,
   message: string,
@@ -431,9 +506,11 @@ function withErrorState(
       status: capability.status === 'active' ? 'degraded' : capability.status,
       connectionLabel:
         capability.status === 'active'
-          ? connectionLabelForStatus('degraded')
+      ? connectionLabelForStatus('degraded')
           : capability.connectionLabel,
     })),
+    isCapabilityViewerOpen: false,
+    selectedCapabilityId: null,
   };
 }
 
@@ -491,6 +568,10 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
           }
 
           if (!event.speaking && state.isSessionActive) {
+            if (shouldIgnoreSpeakingState(state, event.speaking)) {
+              return state;
+            }
+
             const capabilities =
               state.pendingToolCalls.length > 0
                 ? upsertCompletedCapabilities(state.capabilities, state.pendingToolCalls)
@@ -522,6 +603,10 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
           }
 
           if (!event.text.trim()) {
+            return state;
+          }
+
+          if (hasPendingApproval(state)) {
             return state;
           }
 
@@ -594,18 +679,52 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
           };
         }
         case 'approval_requested':
+          {
+            const pendingToolCalls = state.pendingToolCalls.some(
+              (toolCall) => toolCall.callId === event.request.id,
+            )
+              ? state.pendingToolCalls
+              : [
+                  ...state.pendingToolCalls,
+                  {
+                    callId: event.request.id,
+                    name: event.request.toolName,
+                    args: event.request.preview
+                      ? {
+                          to: event.request.preview.to,
+                          subject: event.request.preview.subject,
+                          body: event.request.preview.body,
+                          email_type: event.request.preview.emailType,
+                          link: event.request.preview.link ?? '',
+                        }
+                      : {},
+                  },
+                ];
+            const latestDraftState = syncLatestEmailDraft(state, event.request, 'pending');
+
           return {
             ...state,
-            uiState: 'listening',
-            approvalRequest: null,
-            hintText: 'Listening to user intent...',
+            uiState: 'waiting_approval',
+            approvalRequest: event.request,
+            latestEmailDraft: latestDraftState.latestEmailDraft,
+            latestEmailDraftStatus: latestDraftState.latestEmailDraftStatus,
+            hintText: 'Approval required before sending email.',
+            timelineSteps: createApprovalTimeline(state.timelineSteps, event.request),
+            capabilities: latestDraftState.capabilities,
+            activeStepIndex: state.timelineSteps.length,
+            pendingToolCalls,
           };
+          }
         case 'approval_resolved':
           return reducer(state, {
             type: 'RESOLVE_APPROVAL',
             decision: event.decision,
           });
         case 'completed':
+          if (shouldIgnoreCompletedState(state)) {
+            return state;
+          }
+
           return completeCommand(
             state,
             event.message ?? 'Ready for the next instruction.',
@@ -619,18 +738,46 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
     }
     case 'RESOLVE_APPROVAL': {
       const listeningFlow = state.activeFlow ?? resolveMockVoiceFlow('');
+      const resolvedStatus = approvalDecisionToDraftStatus(action.decision);
+      const latestDraft = applyDraftOverrideToRequest(
+        state.approvalRequest ?? state.latestEmailDraft,
+        action.draft,
+      );
+      const capabilities = latestDraft
+        ? upsertEmailDraftCapability(
+            resetActiveCapabilities(state.capabilities),
+            latestDraft,
+            resolvedStatus,
+          )
+        : resetActiveCapabilities(state.capabilities);
 
       return {
         ...state,
         uiState: 'listening',
         approvalRequest: null,
+        latestEmailDraft: latestDraft,
+        latestEmailDraftStatus: latestDraft ? resolvedStatus : state.latestEmailDraftStatus,
         editStubMessage: null,
         hintText: 'Listening to user intent...',
         timelineSteps: createListeningTimeline(listeningFlow),
         activeFlow: listeningFlow,
         activeStepIndex: 0,
+        capabilities,
+        pendingToolCalls: [],
       };
     }
+    case 'OPEN_CAPABILITY_DETAIL':
+      return {
+        ...state,
+        selectedCapabilityId: action.capabilityId,
+        isCapabilityViewerOpen: true,
+      };
+    case 'CLOSE_CAPABILITY_DETAIL':
+      return {
+        ...state,
+        isCapabilityViewerOpen: false,
+        selectedCapabilityId: null,
+      };
     default:
       return state;
   }
@@ -672,7 +819,12 @@ export function useVoiceAgentUIState(
     markSessionConnected: () => dispatch({type: 'SESSION_CONNECTED'}),
     stopSession: () => dispatch({type: 'SESSION_STOPPED'}),
     dispatchEvent: (event: AgentEventPayload) => dispatch({type: 'INGEST_EVENT', event}),
-    resolveApproval: (decision: 'approved' | 'edited' | 'cancelled') =>
-      dispatch({type: 'RESOLVE_APPROVAL', decision}),
+    resolveApproval: (
+      decision: 'approved' | 'edited' | 'cancelled',
+      draft?: NonNullable<ApprovalRequest['preview']>,
+    ) => dispatch({type: 'RESOLVE_APPROVAL', decision, draft}),
+    openCapabilityDetail: (capabilityId: string) =>
+      dispatch({type: 'OPEN_CAPABILITY_DETAIL', capabilityId}),
+    closeCapabilityDetail: () => dispatch({type: 'CLOSE_CAPABILITY_DETAIL'}),
   };
 }

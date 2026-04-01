@@ -1,10 +1,11 @@
-import {AgentEventPayload} from '../types/voiceAgent.types';
+import {AgentEventPayload, ApprovalRequest} from '../types/voiceAgent.types';
 
 type BrowserRealtimeMessage =
   | {type: 'audio'; data: string}
   | {type: 'state'; speaking: boolean}
   | {type: 'transcript'; role: 'user' | 'assistant'; text: string}
   | {type: 'tool_call'; call_id: string; name: string; args: unknown}
+  | {type: 'approval_request'; request: ApprovalRequest}
   | {type: 'error'; message: string};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -43,6 +44,10 @@ export function mapRealtimeMessageToAgentEvents(message: unknown): AgentEventPay
             },
           ]
         : [];
+    case 'approval_request':
+      return typedMessage.request
+        ? [{type: 'approval_requested', request: typedMessage.request}]
+        : [];
     case 'error':
       return typeof typedMessage.message === 'string'
         ? [{type: 'error', message: typedMessage.message}]
@@ -50,15 +55,4 @@ export function mapRealtimeMessageToAgentEvents(message: unknown): AgentEventPay
     default:
       return [];
   }
-}
-
-export function createApprovalResolutionEvent(
-  requestId: string,
-  decision: 'approved' | 'edited' | 'cancelled',
-): AgentEventPayload {
-  return {
-    type: 'approval_resolved',
-    requestId,
-    decision,
-  };
 }
