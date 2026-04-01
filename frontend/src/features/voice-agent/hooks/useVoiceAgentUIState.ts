@@ -391,10 +391,10 @@ function withErrorState(
   state: VoiceAgentReducerState,
   message: string,
 ): VoiceAgentReducerState {
-  const timelineSteps =
+  const timelineSteps: TimelineStep[] =
     state.timelineSteps.length === 0
       ? []
-      : state.timelineSteps.map((step, index) => {
+      : state.timelineSteps.map((step, index): TimelineStep => {
           if (index < state.activeStepIndex) {
             return step;
           }
@@ -576,7 +576,7 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
             return state;
           }
 
-          const nextTimelineSteps = state.timelineSteps.map((step, index) =>
+          const nextTimelineSteps: TimelineStep[] = state.timelineSteps.map((step, index): TimelineStep =>
             index === stepIndex
               ? {
                   ...step,

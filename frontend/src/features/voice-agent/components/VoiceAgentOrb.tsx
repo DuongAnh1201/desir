@@ -1,6 +1,6 @@
-import {motion} from 'motion/react';
-import {AgentUIState} from '../types/voiceAgent.types';
-import {voiceAgentLayoutTokens} from '../utils/voiceAgentLayoutTokens';
+import { motion } from 'motion/react';
+import { AgentUIState } from '../types/voiceAgent.types';
+import { voiceAgentLayoutTokens } from '../utils/voiceAgentLayoutTokens';
 
 const orbBackground =
   'radial-gradient(circle at 35% 28%, rgba(122,122,255,0.95) 0%, rgba(61,61,255,0.92) 32%, rgba(31,31,247,0.95) 58%, rgba(8,8,240,0.98) 82%, rgba(0,0,238,1) 100%)';
@@ -28,7 +28,7 @@ function getGlowAnimation(uiState: AgentUIState) {
         opacity: [0.15, 0.35, 0.15],
       };
     case 'waiting_approval':
-      return {scale: 0.94, opacity: 0.32};
+      return { scale: 0.94, opacity: 0.32 };
     default:
       return {
         scale: [0.92, 0.98, 0.92],
@@ -40,17 +40,17 @@ function getGlowAnimation(uiState: AgentUIState) {
 function getOrbAnimation(uiState: AgentUIState) {
   switch (uiState) {
     case 'listening':
-      return {scale: [1, 1.05, 1], rotate: [0, 1.5, 0]};
+      return { scale: [1, 1.05, 1], rotate: [0, 1.5, 0] };
     case 'processing':
-      return {scale: [1, 1.02, 1], y: [0, -2, 0]};
+      return { scale: [1, 1.02, 1], y: [0, -2, 0] };
     case 'completed':
-      return {scale: [1, 1.01, 1], y: [0, -1, 0]};
+      return { scale: [1, 1.01, 1], y: [0, -1, 0] };
     case 'error':
-      return {scale: [1, 0.985, 1], opacity: [0.78, 0.92, 0.78]};
+      return { scale: [1, 0.985, 1], opacity: [0.78, 0.92, 0.78] };
     case 'waiting_approval':
-      return {scale: 0.985, opacity: 0.92};
+      return { scale: 0.985, opacity: 0.92 };
     default:
-      return {scale: [1, 1.01, 1]};
+      return { scale: [1, 1.01, 1] };
   }
 }
 
@@ -118,7 +118,7 @@ export function VoiceAgentOrb({
           }}
         />
         <div
-          className="absolute inset-[15%] rounded-full blur-[4px]"
+          className="absolute inset-[15%] rounded-full blur-xs"
           style={{
             background:
               'radial-gradient(circle at 65% 65%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 68%)',

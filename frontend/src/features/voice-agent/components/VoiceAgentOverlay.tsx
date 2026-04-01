@@ -1,10 +1,10 @@
-import {CSSProperties} from 'react';
-import {ApprovalRequest, AgentUIState, TimelineStep, VoiceAgentCapability} from '../types/voiceAgent.types';
-import {CapabilityPanel} from './CapabilityPanel';
-import {ConversationPanel} from './ConversationPanel';
-import {ExecutionTimeline} from './ExecutionTimeline';
-import {VoiceAgentHeader} from './VoiceAgentHeader';
-import {VoiceCommandBar} from './VoiceCommandBar';
+import { CSSProperties } from 'react';
+import { ApprovalRequest, AgentUIState, TimelineStep, VoiceAgentCapability } from '../types/voiceAgent.types';
+import { CapabilityPanel } from './CapabilityPanel';
+import { ConversationPanel } from './ConversationPanel';
+import { ExecutionTimeline } from './ExecutionTimeline';
+import { VoiceAgentHeader } from './VoiceAgentHeader';
+import { VoiceCommandBar } from './VoiceCommandBar';
 
 export function VoiceAgentOverlay({
   uiState,
@@ -37,7 +37,7 @@ export function VoiceAgentOverlay({
 }) {
   return (
     <div
-      className="min-h-screen overflow-hidden bg-[var(--voice-agent-shell)] text-white"
+      className="min-h-screen overflow-hidden bg-(--voice-agent-shell) text-white"
       style={
         {
           ['--voice-agent-live-accent' as string]: accentColor,

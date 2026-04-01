@@ -1,5 +1,5 @@
-import {VoiceAgentCapability} from '../types/voiceAgent.types';
-import {VoiceAgentIcon} from './VoiceAgentIcons';
+import { VoiceAgentCapability } from '../types/voiceAgent.types';
+import { VoiceAgentIcon } from './VoiceAgentIcons';
 
 function capabilityDotColor(status: VoiceAgentCapability['status']) {
   switch (status) {
@@ -27,11 +27,11 @@ function connectionTextColor(status: VoiceAgentCapability['status']) {
   }
 }
 
-export function CapabilityCard({capability}: {capability: VoiceAgentCapability}) {
+export function CapabilityCard({ capability }: { capability: VoiceAgentCapability }) {
   return (
     <article
-      className="rounded-[4px] border bg-[#111111] p-[17px]"
-      style={{borderColor: 'var(--voice-agent-border)'}}
+      className="rounded-sm border bg-[#111111] p-4.25"
+      style={{ borderColor: 'var(--voice-agent-border)' }}
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
@@ -40,7 +40,7 @@ export function CapabilityCard({capability}: {capability: VoiceAgentCapability})
         </div>
         <span
           className="h-2 w-2 rounded-full"
-          style={{backgroundColor: capabilityDotColor(capability.status)}}
+          style={{ backgroundColor: capabilityDotColor(capability.status) }}
         />
       </div>
 
@@ -50,13 +50,13 @@ export function CapabilityCard({capability}: {capability: VoiceAgentCapability})
       </div>
 
       <div
-        className="mt-3 flex items-center justify-between border-t pt-[9px]"
-        style={{borderColor: 'var(--voice-agent-border)'}}
+        className="mt-3 flex items-center justify-between border-t pt-2.25"
+        style={{ borderColor: 'var(--voice-agent-border)' }}
       >
         <div className="text-[9.5px] uppercase text-[#737373]">Connection</div>
         <div
           className="text-[9.5px]"
-          style={{color: connectionTextColor(capability.status)}}
+          style={{ color: connectionTextColor(capability.status) }}
         >
           {capability.connectionLabel}
         </div>
