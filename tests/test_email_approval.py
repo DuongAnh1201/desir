@@ -8,10 +8,11 @@ if str(ROOT) not in sys.path:
 from schemas.agent1 import NotificationEmailRequest
 from tools.email_approval import (
     EmailDraft,
+    build_cancellation_output,
     build_email_approval_request,
     build_revision_output,
+    classify_pending_email_transcript,
     execute_email_draft,
-    merge_edited_email_draft,
 )
 
 
@@ -43,9 +44,8 @@ def test_build_email_approval_request_includes_preview_payload():
 
     assert request["id"] == "call-123"
     assert request["toolName"] == "send_email"
-    assert request["approveLabel"] == "Approve"
-    assert request["editLabel"] == "Edit"
-    assert request["cancelLabel"] == "Reject"
+    assert request["title"] == "Voice Email Review"
+    assert "Say 'send it', 'cancel it'" in request["detail"]
     assert request["preview"] == {
         "to": "friend@example.com",
         "subject": "Dinner plans",
@@ -119,7 +119,13 @@ def test_execute_email_draft_uses_notification_sender():
     assert calls[0].link == "https://example.com/build/123"
 
 
-def test_merge_edited_email_draft_uses_manual_overrides():
+def test_classify_pending_email_transcript_uses_explicit_commands():
+    assert classify_pending_email_transcript("Send it") == "approved"
+    assert classify_pending_email_transcript("Don't send it.") == "cancelled"
+    assert classify_pending_email_transcript("Change the subject to PTO request") == "revised"
+
+
+def test_build_revision_output_preserves_draft_context_and_revision_request():
     draft = EmailDraft(
         email_type="user_request",
         to="friend@example.com",
@@ -127,32 +133,26 @@ def test_merge_edited_email_draft_uses_manual_overrides():
         body="Are you free tomorrow at 7?",
     )
 
-    edited = merge_edited_email_draft(
-        draft,
-        {
-            "subject": "Updated dinner plans",
-            "body": "Can we move this to 8 instead?",
-        },
-    )
+    output = build_revision_output(draft, "Change the subject to Updated dinner plans")
 
-    assert edited.email_type == "user_request"
-    assert edited.to == "friend@example.com"
-    assert edited.subject == "Updated dinner plans"
-    assert edited.body == "Can we move this to 8 instead?"
-
-
-def test_build_revision_output_preserves_draft_context():
-    draft = EmailDraft(
-        email_type="user_request",
-        to="friend@example.com",
-        subject="Dinner plans",
-        body="Are you free tomorrow at 7?",
-    )
-
-    output = build_revision_output(draft, "cancelled")
-
-    assert "Email not sent." in output
-    assert "The user rejected this draft." in output
+    assert "Email not sent yet." in output
+    assert "The user wants to revise the pending draft by voice." in output
     assert "To: friend@example.com" in output
     assert "Subject: Dinner plans" in output
     assert "Are you free tomorrow at 7?" in output
+    assert "Change the subject to Updated dinner plans" in output
+
+
+def test_build_cancellation_output_stops_the_revision_loop():
+    draft = EmailDraft(
+        email_type="user_request",
+        to="friend@example.com",
+        subject="Dinner plans",
+        body="Are you free tomorrow at 7?",
+    )
+
+    output = build_cancellation_output(draft)
+
+    assert "Email not sent." in output
+    assert "The user cancelled this draft by voice." in output
+    assert "wait for the next instruction" in output

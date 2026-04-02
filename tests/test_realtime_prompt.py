@@ -13,5 +13,7 @@ def test_realtime_prompt_requires_send_email_for_complete_drafts():
 
     assert "call `send_email` immediately" in prompt
     assert "Never read the full email draft aloud instead of calling `send_email`." in prompt
-    assert "I've prepared the draft for your approval on screen." in prompt
+    assert "say only a short summary with the recipient and subject" in prompt
+    assert "say 'send it', 'cancel it'" in prompt
+    assert "stay locked on that draft" in prompt
     assert "do not invent the missing detail" in prompt

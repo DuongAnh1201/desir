@@ -14,7 +14,6 @@ import {
   VoiceAgentViewModel,
 } from '../types/voiceAgent.types';
 import {
-  applyDraftOverrideToRequest,
   approvalDecisionToDraftStatus,
   hasPendingApproval,
   shouldIgnoreCompletedState,
@@ -51,13 +50,8 @@ type VoiceAgentAction =
   | {type: 'SESSION_STOPPED'}
   | {type: 'INGEST_EVENT'; event: AgentEventPayload}
   | {type: 'ADVANCE_FLOW'}
-  | {
-      type: 'RESOLVE_APPROVAL';
-      decision: 'approved' | 'edited' | 'cancelled';
-      draft?: NonNullable<ApprovalRequest['preview']>;
-    }
-  | {type: 'OPEN_CAPABILITY_DETAIL'; capabilityId: string}
-  | {type: 'CLOSE_CAPABILITY_DETAIL'};
+  | {type: 'RESOLVE_APPROVAL'; decision: 'approved' | 'cancelled'}
+  | {type: 'TOGGLE_CAPABILITY_DETAIL'; capabilityId: string};
 
 const TOOL_CAPABILITY_DESCRIPTORS: Record<string, ToolCapabilityDescriptor> = {
   send_email: {
@@ -151,9 +145,7 @@ function createInitialState(
     hintText: 'Awaiting command stream...',
     errorMessage: null,
     isSessionActive: false,
-    editStubMessage: null,
     selectedCapabilityId: null,
-    isCapabilityViewerOpen: false,
     activeFlow: null,
     activeStepIndex: -1,
     pendingToolCalls: [],
@@ -372,6 +364,7 @@ function upsertCompletedCapabilities(
       metricLabel: descriptor.metricLabel,
       metricValue: formatToolMetricValue(toolName, toolCall.args),
       connectionLabel: connectionLabelForStatus('connected'),
+      isInteractive: true,
     };
     const existingIndex = nextCapabilities.findIndex((entry) => entry.id === toolName);
 
@@ -397,7 +390,6 @@ function completeCommand(
     uiState: 'listening',
     hintText,
     errorMessage: null,
-    editStubMessage: null,
     capabilities: upsertCompletedCapabilities(state.capabilities, state.pendingToolCalls),
     timelineSteps: createListeningTimeline(listeningFlow),
     approvalRequest: null,
@@ -496,7 +488,6 @@ function withErrorState(
     hintText: message,
     isSessionActive: false,
     approvalRequest: null,
-    editStubMessage: null,
     timelineSteps,
     activeFlow: null,
     activeStepIndex: -1,
@@ -509,7 +500,6 @@ function withErrorState(
       ? connectionLabelForStatus('degraded')
           : capability.connectionLabel,
     })),
-    isCapabilityViewerOpen: false,
     selectedCapabilityId: null,
   };
 }
@@ -529,7 +519,6 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
             : '"Awaiting instruction..."',
         hintText: 'Awaiting live instruction...',
         errorMessage: null,
-        editStubMessage: null,
         approvalRequest: null,
         timelineSteps: createListeningTimeline(flow),
         capabilities: state.isSessionActive
@@ -607,7 +596,11 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
           }
 
           if (hasPendingApproval(state)) {
-            return state;
+            return {
+              ...state,
+              transcriptPreview: formatTranscriptPreview(event.text),
+              hintText: 'Resolving the pending email draft by voice...',
+            };
           }
 
           const flow = resolveMockVoiceFlow(event.text);
@@ -624,7 +617,6 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
             jobId: command.jobId,
             hintText: 'Listening to user intent...',
             errorMessage: null,
-            editStubMessage: null,
             activeFlow: flow,
             activeStepIndex: 0,
             pendingToolCalls: [],
@@ -708,7 +700,7 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
             approvalRequest: event.request,
             latestEmailDraft: latestDraftState.latestEmailDraft,
             latestEmailDraftStatus: latestDraftState.latestEmailDraftStatus,
-            hintText: 'Approval required before sending email.',
+            hintText: "Say 'send it', 'cancel it', or describe what should change.",
             timelineSteps: createApprovalTimeline(state.timelineSteps, event.request),
             capabilities: latestDraftState.capabilities,
             activeStepIndex: state.timelineSteps.length,
@@ -739,10 +731,7 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
     case 'RESOLVE_APPROVAL': {
       const listeningFlow = state.activeFlow ?? resolveMockVoiceFlow('');
       const resolvedStatus = approvalDecisionToDraftStatus(action.decision);
-      const latestDraft = applyDraftOverrideToRequest(
-        state.approvalRequest ?? state.latestEmailDraft,
-        action.draft,
-      );
+      const latestDraft = state.approvalRequest ?? state.latestEmailDraft;
       const capabilities = latestDraft
         ? upsertEmailDraftCapability(
             resetActiveCapabilities(state.capabilities),
@@ -757,7 +746,6 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
         approvalRequest: null,
         latestEmailDraft: latestDraft,
         latestEmailDraftStatus: latestDraft ? resolvedStatus : state.latestEmailDraftStatus,
-        editStubMessage: null,
         hintText: 'Listening to user intent...',
         timelineSteps: createListeningTimeline(listeningFlow),
         activeFlow: listeningFlow,
@@ -766,17 +754,13 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
         pendingToolCalls: [],
       };
     }
-    case 'OPEN_CAPABILITY_DETAIL':
+    case 'TOGGLE_CAPABILITY_DETAIL':
       return {
         ...state,
-        selectedCapabilityId: action.capabilityId,
-        isCapabilityViewerOpen: true,
-      };
-    case 'CLOSE_CAPABILITY_DETAIL':
-      return {
-        ...state,
-        isCapabilityViewerOpen: false,
-        selectedCapabilityId: null,
+        selectedCapabilityId:
+          state.selectedCapabilityId === action.capabilityId
+            ? null
+            : action.capabilityId,
       };
     default:
       return state;
@@ -819,12 +803,7 @@ export function useVoiceAgentUIState(
     markSessionConnected: () => dispatch({type: 'SESSION_CONNECTED'}),
     stopSession: () => dispatch({type: 'SESSION_STOPPED'}),
     dispatchEvent: (event: AgentEventPayload) => dispatch({type: 'INGEST_EVENT', event}),
-    resolveApproval: (
-      decision: 'approved' | 'edited' | 'cancelled',
-      draft?: NonNullable<ApprovalRequest['preview']>,
-    ) => dispatch({type: 'RESOLVE_APPROVAL', decision, draft}),
-    openCapabilityDetail: (capabilityId: string) =>
-      dispatch({type: 'OPEN_CAPABILITY_DETAIL', capabilityId}),
-    closeCapabilityDetail: () => dispatch({type: 'CLOSE_CAPABILITY_DETAIL'}),
+    toggleCapabilityDetail: (capabilityId: string) =>
+      dispatch({type: 'TOGGLE_CAPABILITY_DETAIL', capabilityId}),
   };
 }

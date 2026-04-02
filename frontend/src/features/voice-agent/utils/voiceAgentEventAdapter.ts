@@ -6,6 +6,7 @@ type BrowserRealtimeMessage =
   | {type: 'transcript'; role: 'user' | 'assistant'; text: string}
   | {type: 'tool_call'; call_id: string; name: string; args: unknown}
   | {type: 'approval_request'; request: ApprovalRequest}
+  | {type: 'approval_resolved'; request_id: string; decision: 'approved' | 'cancelled'}
   | {type: 'error'; message: string};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -47,6 +48,16 @@ export function mapRealtimeMessageToAgentEvents(message: unknown): AgentEventPay
     case 'approval_request':
       return typedMessage.request
         ? [{type: 'approval_requested', request: typedMessage.request}]
+        : [];
+    case 'approval_resolved':
+      return typeof typedMessage.request_id === 'string'
+        ? [
+            {
+              type: 'approval_resolved',
+              requestId: typedMessage.request_id,
+              decision: typedMessage.decision,
+            },
+          ]
         : [];
     case 'error':
       return typeof typedMessage.message === 'string'

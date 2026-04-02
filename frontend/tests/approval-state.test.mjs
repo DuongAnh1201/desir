@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applyDraftOverrideToRequest,
   approvalDecisionToDraftStatus,
   formatEmailDraftMetricValue,
   hasPendingApproval,
@@ -80,18 +79,4 @@ test('keeps the latest email draft capability after approval', () => {
     formatEmailDraftMetricValue(approvalRequest),
     'Not Feeling Well -> tom@example.com',
   );
-});
-
-test('applies manual email edits to the persisted latest draft', () => {
-  const editedRequest = applyDraftOverrideToRequest(approvalRequest, {
-    to: 'kaydee@example.com',
-    subject: 'Need to rest',
-    body: 'Hi Kaydee, I am taking the day to recover.',
-    emailType: 'user_request',
-    link: null,
-  });
-
-  assert.equal(editedRequest.preview.to, 'kaydee@example.com');
-  assert.equal(editedRequest.preview.subject, 'Need to rest');
-  assert.equal(editedRequest.summary, 'Outgoing email to kaydee@example.com');
 });

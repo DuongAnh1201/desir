@@ -71,9 +71,6 @@ export interface ApprovalRequest {
   title: string;
   summary: string;
   detail: string;
-  approveLabel: string;
-  editLabel: string;
-  cancelLabel: string;
   preview?: {
     to: string;
     subject: string;
@@ -113,9 +110,7 @@ export interface VoiceAgentViewModel {
   hintText: string;
   errorMessage: string | null;
   isSessionActive: boolean;
-  editStubMessage: string | null;
   selectedCapabilityId: string | null;
-  isCapabilityViewerOpen: boolean;
 }
 
 export type AgentEventPayload =
@@ -135,6 +130,6 @@ export type AgentEventPayload =
   | {
       type: 'approval_resolved';
       requestId: string;
-      decision: 'approved' | 'edited' | 'cancelled';
+      decision: 'approved' | 'cancelled';
     }
   | { type: 'completed'; message?: string };

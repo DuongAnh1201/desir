@@ -6,7 +6,6 @@ import {
   TimelineStep,
   VoiceAgentCapability,
 } from '../types/voiceAgent.types';
-import {CapabilityDetailViewer} from './CapabilityDetailViewer';
 import { CapabilityPanel } from './CapabilityPanel';
 import { ConversationPanel } from './ConversationPanel';
 import { ExecutionTimeline } from './ExecutionTimeline';
@@ -23,15 +22,10 @@ export function VoiceAgentOverlay({
   capabilities,
   jobId,
   hintText,
-  editStubMessage,
   selectedCapabilityId,
-  isCapabilityViewerOpen,
   accentColor,
   onOrbClick,
-  onApprove,
-  onCancel,
-  onOpenCapabilityDetail,
-  onCloseCapabilityDetail,
+  onToggleCapabilityDetail,
 }: {
   uiState: AgentUIState;
   transcriptPreview: string;
@@ -42,22 +36,11 @@ export function VoiceAgentOverlay({
   capabilities: VoiceAgentCapability[];
   jobId: string;
   hintText: string;
-  editStubMessage: string | null;
   selectedCapabilityId: string | null;
-  isCapabilityViewerOpen: boolean;
   accentColor: string;
   onOrbClick: () => void;
-  onApprove: (draft?: NonNullable<ApprovalRequest['preview']>) => void;
-  onCancel: () => void;
-  onOpenCapabilityDetail: (capabilityId: string) => void;
-  onCloseCapabilityDetail: () => void;
+  onToggleCapabilityDetail: (capabilityId: string) => void;
 }) {
-  const shouldShowCapabilityViewer =
-    isCapabilityViewerOpen &&
-    selectedCapabilityId === 'send_email' &&
-    Boolean(latestEmailDraft) &&
-    Boolean(latestEmailDraftStatus);
-
   return (
     <div
       className="min-h-screen overflow-hidden bg-(--voice-agent-shell) text-white"
@@ -67,17 +50,6 @@ export function VoiceAgentOverlay({
         } as CSSProperties
       }
     >
-      {shouldShowCapabilityViewer ? (
-        <CapabilityDetailViewer
-          request={latestEmailDraft}
-          draftStatus={latestEmailDraftStatus}
-          editStubMessage={editStubMessage}
-          onApprove={onApprove}
-          onCancel={onCancel}
-          onClose={onCloseCapabilityDetail}
-        />
-      ) : null}
-
       <div className="flex min-h-screen flex-col">
         <VoiceAgentHeader uiState={uiState} />
 
@@ -93,14 +65,13 @@ export function VoiceAgentOverlay({
               jobId={jobId}
               steps={timelineSteps}
               approvalRequest={approvalRequest}
-              editStubMessage={editStubMessage}
-              onApprove={onApprove}
-              onCancel={onCancel}
             />
             <CapabilityPanel
               capabilities={capabilities}
               selectedCapabilityId={selectedCapabilityId}
-              onSelectCapability={onOpenCapabilityDetail}
+              latestEmailDraft={latestEmailDraft}
+              latestEmailDraftStatus={latestEmailDraftStatus}
+              onToggleCapability={onToggleCapabilityDetail}
             />
           </div>
         </main>

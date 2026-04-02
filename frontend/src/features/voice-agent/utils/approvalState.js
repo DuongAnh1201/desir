@@ -33,26 +33,6 @@ export function approvalDecisionToDraftStatus(decision) {
   return 'pending';
 }
 
-export function applyDraftOverrideToRequest(request, draft) {
-  if (!request || !draft) {
-    return request;
-  }
-
-  return {
-    ...request,
-    preview: {
-      to: draft.to,
-      subject: draft.subject,
-      body: draft.body,
-      emailType: draft.emailType,
-      link: draft.link ?? null,
-    },
-    summary: draft.to
-      ? `Outgoing email to ${draft.to}`
-      : request.summary,
-  };
-}
-
 export function formatEmailDraftMetricValue(request) {
   const subject = truncate(request?.preview?.subject ?? '');
   const recipient = truncate(request?.preview?.to ?? '', 30);

@@ -1,10 +1,31 @@
+import re
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Mapping
 
 from schemas.agent1 import NotificationEmailRequest
 
 EmailType = Literal["notification", "user_request"]
-ApprovalDecision = Literal["approved", "edited", "cancelled"]
+ApprovalDecision = Literal["approved", "cancelled"]
+PendingEmailTranscriptIntent = Literal["approved", "cancelled", "revised"]
+
+APPROVE_COMMANDS = {
+    "approve",
+    "approve it",
+    "send",
+    "send it",
+    "send the email",
+    "yes send it",
+    "looks good send it",
+}
+
+CANCEL_COMMANDS = {
+    "cancel",
+    "cancel it",
+    "cancel the email",
+    "discard it",
+    "dont send it",
+    "do not send it",
+}
 
 
 @dataclass(slots=True)
@@ -65,31 +86,28 @@ def build_email_approval_request(call_id: str, draft: EmailDraft) -> dict[str, A
     return {
         "id": call_id,
         "toolName": "send_email",
-        "title": "Approve Email Draft",
+        "title": "Voice Email Review",
         "summary": f"{email_label} to {draft.to}",
-        "detail": "Review the exact subject and body below. Nothing will be sent until you approve it.",
-        "approveLabel": "Approve",
-        "editLabel": "Edit",
-        "cancelLabel": "Reject",
+        "detail": (
+            "Review the exact subject and body below. "
+            "Say 'send it', 'cancel it', or describe what should change."
+        ),
         "preview": draft.as_preview(),
     }
 
 
-def merge_edited_email_draft(
-    draft: EmailDraft,
-    edited_args: Mapping[str, Any] | None = None,
-) -> EmailDraft:
-    if edited_args is None:
-        return draft
-    if not isinstance(edited_args, Mapping):
-        raise TypeError("Edited email draft payload is invalid.")
+def normalize_voice_command(transcript: str) -> str:
+    normalized = re.sub(r"[^a-z0-9\s]", "", transcript.lower())
+    return " ".join(normalized.split())
 
-    merged_args = draft.as_tool_args()
-    for key in ("email_type", "to", "subject", "body", "link"):
-        if key in edited_args:
-            merged_args[key] = edited_args[key]
 
-    return EmailDraft.from_tool_args(merged_args)
+def classify_pending_email_transcript(transcript: str) -> PendingEmailTranscriptIntent:
+    normalized = normalize_voice_command(transcript)
+    if normalized in APPROVE_COMMANDS:
+        return "approved"
+    if normalized in CANCEL_COMMANDS:
+        return "cancelled"
+    return "revised"
 
 
 def execute_email_draft(
@@ -142,21 +160,33 @@ def execute_email_draft(
     return f"Failed to send email to {draft.to}. Do not say it was sent. Reason: {result}"
 
 
-def build_revision_output(draft: EmailDraft, decision: ApprovalDecision) -> str:
-    if decision == "edited":
-        decision_text = "The user chose to revise it by voice."
-    else:
-        decision_text = "The user rejected this draft."
-
+def build_cancellation_output(draft: EmailDraft) -> str:
     lines = [
         "Email not sent.",
-        decision_text,
-        "Ask one concise follow-up question about what should change and use the current draft as context.",
+        "The user cancelled this draft by voice.",
+        "Acknowledge the cancellation briefly and wait for the next instruction.",
+        "Cancelled draft:",
+        f"To: {draft.to}",
+        f"Subject: {draft.subject}",
+    ]
+    return "\n".join(lines)
+
+
+def build_revision_output(draft: EmailDraft, revision_request: str) -> str:
+    lines = [
+        "Email not sent yet.",
+        "The user wants to revise the pending draft by voice.",
+        (
+            "Update the current draft using the revision request below and call "
+            "`send_email` again once recipient, subject, and body are ready."
+        ),
         "Current draft:",
         f"To: {draft.to}",
         f"Subject: {draft.subject}",
         "Body:",
         draft.body,
+        "Revision request:",
+        revision_request.strip(),
     ]
     if draft.link:
         lines.append(f"Link: {draft.link}")

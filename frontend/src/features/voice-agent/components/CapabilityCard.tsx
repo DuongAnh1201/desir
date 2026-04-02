@@ -36,7 +36,7 @@ export function CapabilityCard({
   isSelected?: boolean;
   onClick?: () => void;
 }) {
-  const isInteractive = capability.isInteractive && onClick;
+  const isInteractive = Boolean(onClick);
 
   return (
     <button
@@ -75,7 +75,7 @@ export function CapabilityCard({
         <div className="mt-1 text-[11px] text-[#d4d4d4]">{capability.metricValue}</div>
         {isInteractive ? (
           <div className="mt-2 text-[9px] uppercase tracking-[1px] text-[#737373]">
-            Click to view template
+            Click to view activity
           </div>
         ) : null}
       </div>

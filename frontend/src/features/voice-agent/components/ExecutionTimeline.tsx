@@ -7,16 +7,10 @@ export function ExecutionTimeline({
   jobId,
   steps,
   approvalRequest,
-  editStubMessage,
-  onApprove,
-  onCancel,
 }: {
   jobId: string;
   steps: TimelineStep[];
   approvalRequest: ApprovalRequest | null;
-  editStubMessage: string | null;
-  onApprove: (draft?: NonNullable<ApprovalRequest['preview']>) => void;
-  onCancel: () => void;
 }) {
   const hasApprovalStep = steps.some((step) => step.status === 'waiting_approval');
   const fallbackApprovalStep: TimelineStep | null = approvalRequest && !hasApprovalStep
@@ -72,9 +66,6 @@ export function ExecutionTimeline({
                   <ApprovalCard
                     request={approvalRequest}
                     draftStatus="pending"
-                    editStubMessage={editStubMessage}
-                    onApprove={onApprove}
-                    onCancel={onCancel}
                   />
                 ) : null}
               </ExecutionTimelineItem>
@@ -84,9 +75,6 @@ export function ExecutionTimeline({
                 <ApprovalCard
                   request={approvalRequest}
                   draftStatus="pending"
-                  editStubMessage={editStubMessage}
-                  onApprove={onApprove}
-                  onCancel={onCancel}
                 />
               </ExecutionTimelineItem>
             ) : null}
