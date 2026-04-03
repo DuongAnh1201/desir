@@ -81,10 +81,22 @@ class EmailDraft:
         }
 
 
-def build_email_approval_request(call_id: str, draft: EmailDraft) -> dict[str, Any]:
+@dataclass(slots=True)
+class PendingEmailApproval:
+    approval_id: str
+    openai_call_id: str
+    draft: EmailDraft
+
+
+@dataclass(slots=True)
+class PendingEmailApprovalState:
+    current: PendingEmailApproval | None = None
+
+
+def build_email_approval_request(approval_id: str, draft: EmailDraft) -> dict[str, Any]:
     email_label = "Notification email" if draft.email_type == "notification" else "Outgoing email"
     return {
-        "id": call_id,
+        "id": approval_id,
         "toolName": "send_email",
         "title": "Voice Email Review",
         "summary": f"{email_label} to {draft.to}",

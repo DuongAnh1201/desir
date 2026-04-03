@@ -20,6 +20,7 @@ import {
   shouldIgnoreSpeakingState,
   upsertEmailDraftCapability,
 } from '../utils/approvalState.js';
+import {upsertApprovalTimeline} from '../utils/approvalTimeline.js';
 
 interface UseVoiceAgentUIStateOptions {
   capabilities?: VoiceAgentCapability[];
@@ -379,6 +380,22 @@ function upsertCompletedCapabilities(
   return nextCapabilities;
 }
 
+function upsertPendingToolCall(
+  pendingToolCalls: PendingToolCall[],
+  toolCall: PendingToolCall,
+): PendingToolCall[] {
+  const existingIndex = pendingToolCalls.findIndex(
+    (entry) => entry.callId === toolCall.callId || entry.name === toolCall.name,
+  );
+  if (existingIndex === -1) {
+    return [...pendingToolCalls, toolCall];
+  }
+
+  const nextPendingToolCalls = [...pendingToolCalls];
+  nextPendingToolCalls[existingIndex] = toolCall;
+  return nextPendingToolCalls;
+}
+
 function completeCommand(
   state: VoiceAgentReducerState,
   hintText: string,
@@ -420,38 +437,6 @@ function syncLatestEmailDraft(
     latestEmailDraftStatus: draftStatus,
     capabilities: upsertEmailDraftCapability(state.capabilities, request, draftStatus),
   };
-}
-
-function createApprovalTimelineStep(
-  request: ApprovalRequest,
-): TimelineStep {
-  return {
-    id: `${request.id}-approval`,
-    title: request.title,
-    subtitle: request.summary,
-    icon: 'lock',
-    status: 'waiting_approval',
-    badgeLabel: badgeLabelForStatus('waiting_approval'),
-  };
-}
-
-function createApprovalTimeline(
-  steps: TimelineStep[],
-  request: ApprovalRequest,
-): TimelineStep[] {
-  const completedSteps = steps.map((step) => {
-    if (step.status === 'completed') {
-      return step;
-    }
-
-    return {
-      ...step,
-      status: 'completed',
-      badgeLabel: badgeLabelForStatus('completed'),
-    };
-  });
-
-  return [...completedSteps, createApprovalTimelineStep(request)];
 }
 
 function withErrorState(
@@ -672,26 +657,20 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
         }
         case 'approval_requested':
           {
-            const pendingToolCalls = state.pendingToolCalls.some(
-              (toolCall) => toolCall.callId === event.request.id,
-            )
-              ? state.pendingToolCalls
-              : [
-                  ...state.pendingToolCalls,
-                  {
-                    callId: event.request.id,
-                    name: event.request.toolName,
-                    args: event.request.preview
-                      ? {
-                          to: event.request.preview.to,
-                          subject: event.request.preview.subject,
-                          body: event.request.preview.body,
-                          email_type: event.request.preview.emailType,
-                          link: event.request.preview.link ?? '',
-                        }
-                      : {},
-                  },
-                ];
+            const approvalTimeline = upsertApprovalTimeline(state.timelineSteps, event.request);
+            const pendingToolCalls = upsertPendingToolCall(state.pendingToolCalls, {
+              callId: event.request.id,
+              name: event.request.toolName,
+              args: event.request.preview
+                ? {
+                    to: event.request.preview.to,
+                    subject: event.request.preview.subject,
+                    body: event.request.preview.body,
+                    email_type: event.request.preview.emailType,
+                    link: event.request.preview.link ?? '',
+                  }
+                : {},
+            });
             const latestDraftState = syncLatestEmailDraft(state, event.request, 'pending');
 
           return {
@@ -701,9 +680,9 @@ function reducer(state: VoiceAgentReducerState, action: VoiceAgentAction): Voice
             latestEmailDraft: latestDraftState.latestEmailDraft,
             latestEmailDraftStatus: latestDraftState.latestEmailDraftStatus,
             hintText: "Say 'send it', 'cancel it', or describe what should change.",
-            timelineSteps: createApprovalTimeline(state.timelineSteps, event.request),
+            timelineSteps: approvalTimeline.timelineSteps,
             capabilities: latestDraftState.capabilities,
-            activeStepIndex: state.timelineSteps.length,
+            activeStepIndex: approvalTimeline.activeStepIndex,
             pendingToolCalls,
           };
           }

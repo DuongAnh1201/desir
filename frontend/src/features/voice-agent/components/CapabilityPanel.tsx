@@ -24,7 +24,7 @@ export function CapabilityPanel({
 
   return (
     <section
-      className="flex min-h-70 flex-col border-t xl:border-l xl:border-t-0"
+      className="flex min-h-70 flex-col border-t xl:min-h-0 xl:overflow-hidden xl:border-l xl:border-t-0"
       style={{borderColor: 'var(--voice-agent-border)'}}
     >
       <div
@@ -36,7 +36,7 @@ export function CapabilityPanel({
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-auto bg-black">
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto bg-black">
         <div className="flex flex-col gap-4 p-4">
           {capabilities.length === 0 ? (
             <div

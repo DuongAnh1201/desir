@@ -12,7 +12,7 @@ export function ConversationPanel({
 }) {
   return (
     <section
-      className="flex min-h-[320px] flex-col border-b xl:border-b-0 xl:border-r"
+      className="flex min-h-[320px] flex-col border-b xl:min-h-0 xl:border-b-0 xl:border-r"
       style={{borderColor: 'var(--voice-agent-border)'}}
     >
       <div

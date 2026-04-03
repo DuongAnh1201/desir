@@ -132,7 +132,7 @@ export function ApprovalCard({
               Message
             </div>
             <div
-              className="min-h-[220px] whitespace-pre-wrap rounded-[6px] border bg-[#0d0d0d] px-4 py-3 text-[12px] leading-6 text-white"
+              className="max-h-[320px] min-h-[220px] overflow-auto whitespace-pre-wrap rounded-[6px] border bg-[#0d0d0d] px-4 py-3 text-[12px] leading-6 text-white"
               style={{borderColor: 'var(--voice-agent-border)'}}
             >
               {preview.body}

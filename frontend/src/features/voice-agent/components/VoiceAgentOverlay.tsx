@@ -43,23 +43,23 @@ export function VoiceAgentOverlay({
 }) {
   return (
     <div
-      className="min-h-screen overflow-hidden bg-(--voice-agent-shell) text-white"
+      className="min-h-screen bg-(--voice-agent-shell) text-white xl:h-screen xl:overflow-hidden"
       style={
         {
           ['--voice-agent-live-accent' as string]: accentColor,
         } as CSSProperties
       }
     >
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col xl:h-full">
         <VoiceAgentHeader uiState={uiState} />
 
         <main
-          className="grid flex-1"
+          className="grid flex-1 xl:min-h-0 xl:overflow-hidden"
           style={{
             gridTemplateColumns: 'minmax(0, 1fr)',
           }}
         >
-          <div className="grid min-h-0 grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+          <div className="grid min-h-0 grid-cols-1 xl:h-full xl:grid-cols-[320px_minmax(0,1fr)_320px] xl:overflow-hidden">
             <ConversationPanel uiState={uiState} hintText={hintText} onOrbClick={onOrbClick} />
             <ExecutionTimeline
               jobId={jobId}

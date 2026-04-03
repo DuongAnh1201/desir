@@ -15,7 +15,6 @@ import http
 import json
 import os
 import sys
-import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -136,11 +135,15 @@ TOOL_DEFINITIONS = [
 async def handle_send_email_tool_call(
     call_id: str,
     args: dict[str, Any],
-    pending_email_approvals: dict[str, Any],
+    pending_email_approval: Any,
     send_browser_event: Callable[[dict[str, Any]], Awaitable[None]],
     send_function_call_output: Callable[[str, str], Awaitable[None]],
 ) -> None:
-    from tools.email_approval import EmailDraft, build_email_approval_request
+    from tools.email_approval import (
+        EmailDraft,
+        PendingEmailApproval,
+        build_email_approval_request,
+    )
 
     try:
         draft = EmailDraft.from_tool_args(args)
@@ -153,22 +156,34 @@ async def handle_send_email_tool_call(
         await send_function_call_output(call_id, result)
         return
 
-    pending_email_approvals[call_id] = draft
-    approval_request = build_email_approval_request(call_id, draft)
+    approval_id = (
+        pending_email_approval.current.approval_id
+        if pending_email_approval.current is not None
+        else call_id
+    )
+    pending_email_approval.current = PendingEmailApproval(
+        approval_id=approval_id,
+        openai_call_id=call_id,
+        draft=draft,
+    )
+    approval_request = build_email_approval_request(approval_id, draft)
     print(
-        f"[email-approval] prepared call_id={call_id} "
+        f"[email-approval] prepared approval_id={approval_id} call_id={call_id} "
         f"to={draft.to!r} subject={draft.subject!r}"
     )
     await send_browser_event({
         "type": "approval_request",
         "request": approval_request,
     })
-    print(f"[email-approval] emitted approval_request call_id={call_id}")
+    print(
+        f"[email-approval] emitted approval_request "
+        f"approval_id={approval_id} call_id={call_id}"
+    )
 
 
 async def handle_pending_email_approval(
     transcript: str,
-    pending_email_approvals: dict[str, Any],
+    pending_email_approval: Any,
     send_browser_event: Callable[[dict[str, Any]], Awaitable[None]],
     send_function_call_output: Callable[[str, str], Awaitable[None]],
     execute_email: Callable[[Any], Awaitable[str]] | None = None,
@@ -180,128 +195,56 @@ async def handle_pending_email_approval(
         execute_email_draft,
     )
 
-    if not pending_email_approvals:
+    approval = pending_email_approval.current
+    if approval is None:
         return False
 
-    request_id, draft = next(iter(pending_email_approvals.items()))
     decision = classify_pending_email_transcript(transcript)
-    print(f"[email-approval] voice resolution call_id={request_id} decision={decision}")
+    print(
+        "[email-approval] voice resolution "
+        f"approval_id={approval.approval_id} call_id={approval.openai_call_id} "
+        f"decision={decision}"
+    )
 
     if decision == "approved":
-        pending_email_approvals.pop(request_id, None)
+        pending_email_approval.current = None
         if execute_email is None:
-            output = await asyncio.to_thread(execute_email_draft, draft)
+            output = await asyncio.to_thread(execute_email_draft, approval.draft)
         else:
-            output = await execute_email(draft)
+            output = await execute_email(approval.draft)
         await send_browser_event({
             "type": "approval_resolved",
-            "request_id": request_id,
+            "request_id": approval.approval_id,
             "decision": "approved",
         })
-        await send_function_call_output(request_id, output)
+        await send_function_call_output(approval.openai_call_id, output)
         return True
 
     if decision == "cancelled":
-        pending_email_approvals.pop(request_id, None)
+        pending_email_approval.current = None
         await send_browser_event({
             "type": "approval_resolved",
-            "request_id": request_id,
+            "request_id": approval.approval_id,
             "decision": "cancelled",
         })
-        await send_function_call_output(request_id, build_cancellation_output(draft))
+        await send_function_call_output(
+            approval.openai_call_id,
+            build_cancellation_output(approval.draft),
+        )
         return True
 
-    pending_email_approvals.pop(request_id, None)
     await send_function_call_output(
-        request_id,
-        build_revision_output(draft, transcript),
+        approval.openai_call_id,
+        build_revision_output(approval.draft, transcript),
     )
     return True
-
-
-async def maybe_intercept_complete_email_draft(
-    transcript: str,
-    default_email_address: str,
-    pending_email_approvals: dict[str, Any],
-    send_browser_event: Callable[[dict[str, Any]], Awaitable[None]],
-    send_function_call_output: Callable[[str, str], Awaitable[None]],
-    extractor: Callable[[str, str], Awaitable[Any]] | None = None,
-    call_id_factory: Callable[[], str] | None = None,
-) -> bool:
-    from ai.agents.email_draft_extractor import (
-        extract_spoken_email_draft,
-        normalize_email_recipient,
-    )
-
-    try:
-        extraction = await (
-            extractor or extract_spoken_email_draft
-        )(transcript, default_email_address)
-    except Exception as error:
-        print(f"[email-approval] extractor failed reason={error}")
-        return False
-
-    reason = getattr(extraction, "reason", "").strip() or "unspecified"
-    if not getattr(extraction, "is_email_intent", False):
-        print(f"[email-approval] extractor skipped not_email reason={reason}")
-        return False
-
-    if getattr(extraction, "email_type", "unknown") != "user_request":
-        print(
-            "[email-approval] extractor skipped "
-            f"reason={reason} email_type={getattr(extraction, 'email_type', 'unknown')}"
-        )
-        return False
-
-    if not getattr(extraction, "is_complete", False):
-        print(f"[email-approval] extractor skipped incomplete reason={reason}")
-        return False
-
-    args = {
-        "email_type": "user_request",
-        "to": normalize_email_recipient(
-            str(getattr(extraction, "to", "")).strip(),
-            default_email_address,
-        ),
-        "subject": str(getattr(extraction, "subject", "")).strip(),
-        "body": str(getattr(extraction, "body", "")).strip(),
-        "link": str(getattr(extraction, "link", "")).strip(),
-    }
-    missing_fields = [name for name in ("to", "subject", "body") if not args[name]]
-    if missing_fields:
-        print(
-            "[email-approval] extractor skipped incomplete "
-            f"reason=missing_{'_'.join(missing_fields)}"
-        )
-        return False
-
-    call_id = (
-        call_id_factory()
-        if call_id_factory is not None
-        else f"voice-email-{uuid.uuid4().hex}"
-    )
-    print(
-        f"[email-approval] extractor complete call_id={call_id} "
-        f"to={args['to']!r} subject={args['subject']!r}"
-    )
-    await handle_send_email_tool_call(
-        call_id=call_id,
-        args=args,
-        pending_email_approvals=pending_email_approvals,
-        send_browser_event=send_browser_event,
-        send_function_call_output=send_function_call_output,
-    )
-    return True
-
 
 async def handle_transcribed_user_utterance(
     transcript: str,
-    default_email_address: str,
-    pending_email_approvals: dict[str, Any],
+    pending_email_approval: Any,
     send_browser_event: Callable[[dict[str, Any]], Awaitable[None]],
     send_function_call_output: Callable[[str, str], Awaitable[None]],
     send_openai_event: Callable[[dict[str, Any]], Awaitable[None]],
-    email_draft_interceptor: Callable[..., Awaitable[bool]] | None = None,
 ) -> None:
     if not transcript:
         return
@@ -314,22 +257,10 @@ async def handle_transcribed_user_utterance(
 
     if await handle_pending_email_approval(
         transcript=transcript,
-        pending_email_approvals=pending_email_approvals,
+        pending_email_approval=pending_email_approval,
         send_browser_event=send_browser_event,
         send_function_call_output=send_function_call_output,
     ):
-        return
-
-    intercepted = await (
-        email_draft_interceptor or maybe_intercept_complete_email_draft
-    )(
-        transcript=transcript,
-        default_email_address=default_email_address,
-        pending_email_approvals=pending_email_approvals,
-        send_browser_event=send_browser_event,
-        send_function_call_output=send_function_call_output,
-    )
-    if intercepted:
         return
 
     await send_openai_event({"type": "response.create"})
@@ -340,9 +271,7 @@ async def session_handler(browser_ws: WebSocketServerProtocol) -> None:
     from ai.prompts import load_prompt
     from ai.agents.orchestrator import get_orchestrator
     from ai.agents.deps import OrchestratorDeps
-    from tools.email_approval import (
-        EmailDraft,
-    )
+    from tools.email_approval import PendingEmailApprovalState
 
     # Conversation history — passed as context to the orchestrator each call
     history: list[dict[str, str]] = []
@@ -392,7 +321,7 @@ async def session_handler(browser_ws: WebSocketServerProtocol) -> None:
             }))
 
             pending_fn_calls: dict[str, dict] = {}
-            pending_email_approvals: dict[str, EmailDraft] = {}
+            pending_email_approval = PendingEmailApprovalState()
             _pending_user: str = ""
             _pending_desir: str = ""
 
@@ -453,8 +382,7 @@ async def session_handler(browser_ws: WebSocketServerProtocol) -> None:
                         }))
                         await handle_transcribed_user_utterance(
                             transcript=transcript,
-                            default_email_address=deps.email_address,
-                            pending_email_approvals=pending_email_approvals,
+                            pending_email_approval=pending_email_approval,
                             send_browser_event=lambda message: browser_ws.send(json.dumps(message)),
                             send_function_call_output=send_function_call_output,
                             send_openai_event=lambda message: openai_ws.send(json.dumps(message)),
@@ -505,7 +433,7 @@ async def session_handler(browser_ws: WebSocketServerProtocol) -> None:
                             await handle_send_email_tool_call(
                                 call_id=call_id,
                                 args=args,
-                                pending_email_approvals=pending_email_approvals,
+                                pending_email_approval=pending_email_approval,
                                 send_browser_event=lambda message: browser_ws.send(json.dumps(message)),
                                 send_function_call_output=send_function_call_output,
                             )

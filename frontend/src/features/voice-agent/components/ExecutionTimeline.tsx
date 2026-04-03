@@ -24,7 +24,7 @@ export function ExecutionTimeline({
     : null;
 
   return (
-    <section className="flex min-h-[360px] flex-col bg-[var(--voice-agent-center-shell)]">
+    <section className="flex min-h-[360px] flex-col bg-[var(--voice-agent-center-shell)] xl:min-h-0 xl:overflow-hidden">
       <div
         className="flex items-center justify-between border-b px-4 pb-[17px] pt-4"
         style={{borderColor: 'var(--voice-agent-border)'}}
@@ -41,7 +41,7 @@ export function ExecutionTimeline({
       </div>
 
       <div
-        className="relative flex-1 overflow-auto"
+        className="relative min-h-0 flex-1 overflow-auto"
         style={{padding: voiceAgentLayoutTokens.timelinePadding}}
       >
         <div
