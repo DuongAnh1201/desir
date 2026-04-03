@@ -197,7 +197,10 @@ export default function App() {
         error: errorMessage,
       }));
       dispatchEvent({type: 'error', message: errorMessage});
+      // Prevent the onclose handler from running during explicit close.
       ws.onclose = null;
+      // Explicitly close the WebSocket to avoid leaking the socket on error.
+      ws.close();
       teardownAssistant(true);
     };
   };
