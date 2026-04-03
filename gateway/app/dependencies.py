@@ -3,7 +3,7 @@
 from fastapi import Depends, HTTPException, status
 #HTTPBearer is a pre-built helper that knows how to read the Authorization: Bear <token> header from an incoming request
 #HTTPAuthorizationCredentials is the object it returns after reading that header- it holds the scheme('Bearer') and the raw token string
-from fastapi.security import HTTBearer, HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, HTTPBearer
 #The type for an async database session. 
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import decode_token

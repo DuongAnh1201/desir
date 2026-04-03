@@ -31,9 +31,16 @@ dependencies = [
     "resend>=2.23.0",
     "resen>=2021.1.0",
     "watchfiles>=0.22.0",
-    "fastapi>=0.135.2",
+    "fastapi[standard]>=0.135.2",
     "jose>=1.0.0",
     "datetime>=6.0",
+    "asyncpg>=0.30.0",
+    "passlib[bcrypt]",
+    "sqlalchemy[asyncio]",
+    "aiosqlite",
+    "uvicorn",
+    "email-validator",
+    "python-jose[cryptography]>=3.5.0",
 ]
 
 [project.scripts]
