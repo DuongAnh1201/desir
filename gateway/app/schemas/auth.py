@@ -1,5 +1,5 @@
 #LoginRequest, TokenResponse, UserOut
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 class RegisterRequest(BaseModel):
     email: EmailStr #validates it's a real email format
