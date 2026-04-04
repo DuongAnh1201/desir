@@ -8,12 +8,14 @@ Usage anywhere in the project:
     key   = settings.serper_api_key
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 from dotenv import load_dotenv
 import os
 load_dotenv()
 
-class Settings(BaseSettings):
+class Settings():
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -34,6 +36,11 @@ class Settings(BaseSettings):
 
     realtime_voice: str = os.getenv("REALTIME_VOICE", "nova")
     """Realtime voice. Options: alloy, ash, ballad, coral, echo, sage, shimmer, verse."""
+    base_url: str = os.getenv("BASE_URL")
+    """Base URL for the API."""
+
+    api_key: str = os.getenv("API_KEY")
+    """API key for the API."""
 
     # ── API Keys ────────────────────────────────────────────────────────────────
     openai_api_key: str = os.getenv("OPENAI_API_KEY")
@@ -50,6 +57,13 @@ class Settings(BaseSettings):
 
     logfire_token: str
     """Required for Logfire integration."""
+    model = OpenAIChatModel(
+        'gemma4:e4b',
+        provider=OpenAIProvider(
+            base_url=base_url,
+            api_key=api_key,
+        )
+    )
 
 
 # Singleton — import this everywhere instead of instantiating Settings() yourself.
