@@ -16,7 +16,7 @@ def get_email_agent() -> Agent:
         from config import settings
 
         _email_agent = Agent(
-            model=settings.ai_model,
+            model=settings.model,
             name="email_agent",
             system_prompt=_SYSTEM_PROMPT,
             output_type=EmailResult,
@@ -72,3 +72,11 @@ def get_email_agent() -> Agent:
                 return f"Failed to register domain: {e}"
 
     return _email_agent
+
+if __name__ == "__main__":
+    async def main():
+        agent = get_email_agent()
+        result = await agent.run("send an notification email to tomnguyen6766@gmail.com with subject 'Hello' and body 'Hello, how are you?'")
+        print(result.output.message)
+
+    asyncio.run(main())
