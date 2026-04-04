@@ -4,7 +4,7 @@ import {voiceAgentStatusCopy, voiceAgentStatusTone} from '../utils/voiceAgentLay
 export function SystemStatusBadge({uiState}: {uiState: AgentUIState}) {
   return (
     <div
-      className="inline-flex items-center gap-3 rounded-[4px] border bg-[#1a1a1a] px-[13px] py-[5px]"
+      className="inline-flex items-center gap-3 rounded-sm border bg-[#1a1a1a] px-[0.8125rem] py-[0.3125rem]"
       style={{borderColor: 'var(--voice-agent-border)'}}
     >
       <span
