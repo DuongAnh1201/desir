@@ -1,5 +1,5 @@
-import {Mail} from 'lucide-react';
-import {ApprovalRequest, EmailDraftLifecycleStatus} from '../types/voiceAgent.types';
+import { Mail } from 'lucide-react';
+import { ApprovalRequest, EmailDraftLifecycleStatus } from '../types/voiceAgent.types';
 
 function statusLabelForDraft(status: EmailDraftLifecycleStatus) {
   switch (status) {
@@ -43,10 +43,10 @@ export function ApprovalCard({
   return (
     <div
       className="rounded-[10px] border bg-[#111111] p-5"
-      style={{borderColor: 'var(--voice-agent-border)'}}
+      style={{ borderColor: 'var(--voice-agent-border)' }}
     >
       <div className="flex items-start gap-4">
-        <div className="mt-0.5 rounded-[8px] border border-white/10 bg-white/5 p-3 text-[#d4d4d4]">
+        <div className="mt-0.5 rounded-lg border border-white/10 bg-white/5 p-3 text-[#d4d4d4]">
           <Mail size={22} strokeWidth={1.8} />
         </div>
         <div className="min-w-0 flex-1">
@@ -61,11 +61,11 @@ export function ApprovalCard({
           <div className="mt-2 text-[22px] font-semibold tracking-[-0.02em] text-white">
             Email Draft
           </div>
-          <div className="mt-2 max-w-[560px] text-[12px] leading-6 text-[#a3a3a3]">
+          <div className="mt-2 max-w-140 text-[12px] leading-6 text-[#a3a3a3]">
             {request.detail}
           </div>
           <div className="mt-2 text-[11px] text-[#737373]">{request.summary}</div>
-          <div className="mt-3 rounded-[8px] border border-white/10 bg-black/20 px-4 py-3 text-[11px] text-[#d4d4d4]">
+          <div className="mt-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-[11px] text-[#d4d4d4]">
             {voiceHint}
           </div>
         </div>
@@ -74,7 +74,7 @@ export function ApprovalCard({
       {preview ? (
         <div
           className="mt-6 rounded-[10px] border bg-black/20 p-4"
-          style={{borderColor: 'var(--voice-agent-border)'}}
+          style={{ borderColor: 'var(--voice-agent-border)' }}
         >
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
             <div className="grid gap-2">
@@ -82,8 +82,8 @@ export function ApprovalCard({
                 Recipient
               </div>
               <div
-                className="rounded-[6px] border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white"
-                style={{borderColor: 'var(--voice-agent-border)'}}
+                className="rounded-md border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white"
+                style={{ borderColor: 'var(--voice-agent-border)' }}
               >
                 {preview.to}
               </div>
@@ -93,8 +93,8 @@ export function ApprovalCard({
                 Type
               </div>
               <div
-                className="rounded-[6px] border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white"
-                style={{borderColor: 'var(--voice-agent-border)'}}
+                className="rounded-md border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white"
+                style={{ borderColor: 'var(--voice-agent-border)' }}
               >
                 {preview.emailType === 'notification' ? 'Notification Email' : 'User Request'}
               </div>
@@ -106,8 +106,8 @@ export function ApprovalCard({
               Subject
             </div>
             <div
-              className="rounded-[6px] border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white"
-              style={{borderColor: 'var(--voice-agent-border)'}}
+              className="rounded-md border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white"
+              style={{ borderColor: 'var(--voice-agent-border)' }}
             >
               {preview.subject}
             </div>
@@ -119,8 +119,8 @@ export function ApprovalCard({
                 Link
               </div>
               <div
-                className="rounded-[6px] border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white break-all"
-                style={{borderColor: 'var(--voice-agent-border)'}}
+                className="rounded-md border bg-[#0d0d0d] px-4 py-3 text-[12px] text-white break-all"
+                style={{ borderColor: 'var(--voice-agent-border)' }}
               >
                 {preview.link}
               </div>
@@ -132,8 +132,8 @@ export function ApprovalCard({
               Message
             </div>
             <div
-              className="max-h-[320px] min-h-[220px] overflow-auto whitespace-pre-wrap rounded-[6px] border bg-[#0d0d0d] px-4 py-3 text-[12px] leading-6 text-white"
-              style={{borderColor: 'var(--voice-agent-border)'}}
+              className="max-h-80 min-h-55 overflow-auto whitespace-pre-wrap rounded-md border bg-[#0d0d0d] px-4 py-3 text-[12px] leading-6 text-white"
+              style={{ borderColor: 'var(--voice-agent-border)' }}
             >
               {preview.body}
             </div>
