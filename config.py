@@ -58,7 +58,7 @@ class Settings():
     logfire_token: str
     """Required for Logfire integration."""
     model = OpenAIChatModel(
-        'gemma4:e4b',
+        'qwen3.5',
         provider=OpenAIProvider(
             base_url=base_url,
             api_key=api_key,
