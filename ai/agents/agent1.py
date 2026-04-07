@@ -2,6 +2,7 @@
 import asyncio
 from pydantic_ai import Agent, RunContext
 from ai.agents.deps import OrchestratorDeps
+
 from ai.prompts import load_prompt
 
 _email_agent: Agent | None = None
