@@ -52,18 +52,18 @@ export function ExecutionTimelineItem({
     <div className="w-full">
       <div className="flex w-full items-start gap-6">
         <div
-          className={`relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-black ${statusIconClassName(step.status)}`}
+          className={`relative z-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-black ${statusIconClassName(step.status)}`}
         >
           <VoiceAgentIcon name={step.icon} className="h-4 w-4" />
         </div>
 
         <div
-          className={`min-w-0 flex-1 rounded-[4px] border p-[17px] ${statusCardClassName(step.status)}`}
+          className={`min-w-0 flex-1 rounded-sm border p-4.25 ${statusCardClassName(step.status)}`}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 text-[13.4px] font-semibold text-white">{step.title}</div>
             <div
-              className={`shrink-0 rounded-[4px] px-2 py-[2px] text-[9.7px] font-bold uppercase leading-[15px] ${statusBadgeClassName(step.status)}`}
+              className={`shrink-0 rounded-sm px-2 py-0.5 text-[9.7px] font-bold uppercase leading-3.75 ${statusBadgeClassName(step.status)}`}
             >
               {step.badgeLabel}
             </div>

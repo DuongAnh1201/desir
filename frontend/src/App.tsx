@@ -1,7 +1,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {
   VoiceAgentOverlay,
-  createApprovalResolutionEvent,
   mapRealtimeMessageToAgentEvents,
   useVoiceAgentUIState,
 } from './features/voice-agent';
@@ -54,6 +53,7 @@ export default function App() {
     markSessionConnected,
     stopSession,
     dispatchEvent,
+    toggleCapabilityDetail,
   } = useVoiceAgentUIState();
 
   useEffect(() => {
@@ -197,7 +197,10 @@ export default function App() {
         error: errorMessage,
       }));
       dispatchEvent({type: 'error', message: errorMessage});
+      // Prevent the onclose handler from running during explicit close.
       ws.onclose = null;
+      // Explicitly close the WebSocket to avoid leaking the socket on error.
+      ws.close();
       teardownAssistant(true);
     };
   };
@@ -211,26 +214,21 @@ export default function App() {
     void startAssistant();
   };
 
-  const resolveApproval = (decision: 'approved' | 'edited' | 'cancelled') => {
-    const requestId = voiceAgentState.approvalRequest?.id ?? 'local-approval';
-    dispatchEvent(createApprovalResolutionEvent(requestId, decision));
-  };
-
   return (
     <VoiceAgentOverlay
       uiState={voiceAgentState.uiState}
       transcriptPreview={voiceAgentState.transcriptPreview}
       timelineSteps={voiceAgentState.timelineSteps}
       approvalRequest={voiceAgentState.approvalRequest}
+      latestEmailDraft={voiceAgentState.latestEmailDraft}
+      latestEmailDraftStatus={voiceAgentState.latestEmailDraftStatus}
       capabilities={voiceAgentState.capabilities}
       jobId={voiceAgentState.jobId}
       hintText={voiceAgentState.errorMessage ?? voiceAgentState.hintText}
-      editStubMessage={voiceAgentState.editStubMessage}
+      selectedCapabilityId={voiceAgentState.selectedCapabilityId}
       accentColor={runtimeState.themeColor}
       onOrbClick={togglePower}
-      onApprove={() => resolveApproval('approved')}
-      onEdit={() => resolveApproval('edited')}
-      onCancel={() => resolveApproval('cancelled')}
+      onToggleCapabilityDetail={toggleCapabilityDetail}
     />
   );
 }

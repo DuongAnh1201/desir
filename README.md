@@ -141,10 +141,11 @@ Session state injected per call (OrchestratorDeps):
 - Node.js 18+
 - [uv](https://docs.astral.sh/uv/) — Python package manager
 - [accli](https://www.npmjs.com/package/@joargp/accli) — macOS Calendar CLI (`sudo npm i -g @joargp/accli`, then `accli setup`)
-- OpenAI API key (with Realtime API access)
+- OpenAI API key (with Realtime API access) — required for voice/realtime regardless of agent model
 - [Resend](https://resend.com) API key (email)
 - [Serper](https://serper.dev) API key (web search)
 - [Logfire](https://logfire.pydantic.dev) token (observability)
+- **[Ollama](https://ollama.com)** *(optional)* — run agent reasoning locally instead of OpenAI
 
 ### Install uv
 
@@ -186,6 +187,42 @@ SERPER_API_KEY=...
 LOGFIRE_TOKEN=...
 LOGFIRE_ENVIRONMENT=local
 ```
+
+### AI Model — Ollama (Local)
+
+By default the agents use an OpenAI model (`AI_MODEL`). You can switch the **agent reasoning layer** to a local [Ollama](https://ollama.com) model while keeping OpenAI for voice/realtime.
+
+> Note: `REALTIME_MODEL` and `OPENAI_API_KEY` must stay set — Ollama has no equivalent realtime audio API.
+
+**1. Install and start Ollama**
+
+```bash
+# macOS
+brew install ollama
+ollama serve
+```
+
+**2. Pull a model**
+
+```bash
+ollama pull qwen2.5        # recommended — good tool-calling and JSON adherence
+# or
+ollama pull gemma4:e2b     # smaller / faster, weaker on structured outputs
+```
+
+**3. Update `.env`**
+
+```env
+AI_MODEL=qwen2.5
+BASE_URL=http://localhost:11434/v1
+API_KEY=ollama
+```
+
+**4. Run normally** — the agents will call Ollama; voice still goes through OpenAI Realtime.
+
+> For a full rationale, pros/cons, and validation checklist see [`docs/OLLAMA_PROPOSAL.md`](docs/OLLAMA_PROPOSAL.md) and [`docs/OLLAMA_PROPOSAL_ACTIONS.md`](docs/OLLAMA_PROPOSAL_ACTIONS.md).
+
+---
 
 ### Running
 
