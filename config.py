@@ -65,6 +65,8 @@ class Settings():
         )
     )
 
+    file_path: str = os.getenv("FILE_PATH")
+    """Path to the knowledge base."""
 
 # Singleton — import this everywhere instead of instantiating Settings() yourself.
 settings = Settings()
