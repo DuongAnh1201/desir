@@ -55,16 +55,10 @@ class Settings():
     resend_from: str = os.getenv("RESEND_FROM", "Desir <onboarding@resend.dev>")
     """Sender address. Use a verified domain in production."""
 
-    logfire_token: str
+    logfire_token: str = os.getenv("LOGFIRE_TOKEN")
+    logfire_environment: str = os.getenv("LOGFIRE_ENVIRONMENT")
     """Required for Logfire integration."""
-    model = OpenAIChatModel(
-        'qwen3:8b',
-        provider=OpenAIProvider(
-            base_url=base_url,
-            api_key=api_key,
-        )
-    )
-
+    
     file_path: str = os.getenv("FILE_PATH")
     """Path to the knowledge base."""
 
