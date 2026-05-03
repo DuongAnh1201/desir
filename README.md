@@ -95,10 +95,21 @@ User (Voice)
         │               └── search_web(query)
         │                     └── Serper API (Google Search) → summary
         │
-        └──▶ delegate_communication(recipient, action, message)
-                  └── agent4.py — Communication Agent
-                        ├── send_imessage → macOS Messages (AppleScript)
-                        └── make_call → macOS FaceTime / Phone
+        ├──▶ delegate_communication(recipient, action, message)
+        │         └── agent4.py — Communication Agent
+        │               ├── send_imessage → macOS Messages (AppleScript)
+        │               └── make_call → macOS FaceTime / Phone
+        │
+        └──▶ delegate_knowledge_base(request)
+                  └── agent5.py — Knowledge Base Agent
+                        ├── create_new_file(file_name, file_content)
+                        │     └── tools/knowledge_base.py → .knowledge/<name>.md
+                        ├── read_file(file_name)
+                        │     └── tools/knowledge_base.py → reads .knowledge/<name>.md
+                        ├── update_file(file_name, file_content)
+                        │     └── tools/knowledge_base.py → appends to .knowledge/<name>.md
+                        └── add_context(file_name_1, file_name_2)
+                              └── tools/knowledge_base.py → links nodes in .knowledge/graph.json
 
 Frontend-only tools (forwarded directly to browser, no server or agent logic):
   changeThemeColor   — updates holographic UI color in real time
@@ -186,6 +197,9 @@ SERPER_API_KEY=...
 
 LOGFIRE_TOKEN=...
 LOGFIRE_ENVIRONMENT=local
+
+# Knowledge base — directory where agent5 stores .md files and graph.json
+FILE_PATH=./.knowledge/
 ```
 
 ### AI Model — Ollama (Local)
@@ -266,25 +280,34 @@ desir/
 │   │   ├── agent1.py          # Email agent
 │   │   ├── agent2.py          # Calendar agent
 │   │   ├── agent3.py          # Search agent
-│   │   └── agent4.py          # Communication agent
+│   │   ├── agent4.py          # Communication agent
+│   │   └── agent5.py          # Knowledge base agent
 │   └── prompts/
-│       ├── orchestrator.md    # Orchestrator routing rules
-│       ├── realtime_session.md # OpenAI Realtime system prompt
-│       ├── email_agent.md     # Email agent instructions
-│       ├── calendar_agent.md  # Calendar agent instructions
-│       ├── search_agent.md    # Search agent instructions
-│       └── tombio.md          # User biographical context
+│       ├── orchestrator.md         # Orchestrator routing rules
+│       ├── realtime_session.md     # OpenAI Realtime system prompt
+│       ├── email_agent.md          # Email agent instructions
+│       ├── calendar_agent.md       # Calendar agent instructions
+│       ├── search_agent.md         # Search agent instructions
+│       ├── communication_agent.md  # Communication agent instructions
+│       ├── knowledge_base_agent.md # Knowledge base agent instructions
+│       └── tombio.md               # User biographical context
 │
 ├── tools/
 │   ├── sending_email.py       # Resend API wrappers
-│   └── calendar.py            # accli CLI wrappers for macOS Calendar
+│   ├── calendar.py            # accli CLI wrappers for macOS Calendar
+│   └── knowledge_base.py      # .md file CRUD + graph.json context graph
 │
 ├── schemas/
 │   ├── orchestrator.py        # OrchestratorResult
 │   ├── agent1.py              # EmailRequest, EmailResult
 │   ├── agent2.py              # CalendarRequest, CalendarResult
 │   ├── agent3.py              # SearchResult
-│   └── agent4.py              # CommunicationResult
+│   ├── agent4.py              # CommunicationResult
+│   └── agent5.py              # KnowledgeBaseRequest, KnowledgeBaseResult
+│
+├── .knowledge/                # Auto-created — agent5 stores files here
+│   ├── graph.json             # Context graph linking related .md files
+│   └── *.md                   # Knowledge files written by agent5
 │
 └── frontend/                  # React + Vite holographic UI
 ```
@@ -307,6 +330,7 @@ desir/
 - [x] React + Vite frontend with holographic UI
 - [x] Calendar agent — create, update, delete, free/busy via accli + macOS Calendar
 - [x] Calendar event ID persistence within session (update/delete by name)
+- [x] Knowledge base agent — save, retrieve, update `.md` files + context graph (`graph.json`)
 - [ ] Custom domain email sending (Resend domain verification flow)
 - [ ] Expand sub-agent action library
 - [ ] User testing and feedback

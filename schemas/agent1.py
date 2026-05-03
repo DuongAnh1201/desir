@@ -3,6 +3,10 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class EmailAgentResult(BaseModel):
+    message: str
+
+
 
 class NotificationEmailRequest(BaseModel):
     recipient: str
@@ -33,3 +37,13 @@ class EmailRequest(BaseModel):
 class EmailResult(BaseModel):
     success: bool
     message: str
+
+class SpokenEmailDraftExtraction(BaseModel):
+    is_email_intent: bool = False
+    is_complete: bool = False
+    email_type: Literal["notification", "user_request", "unknown"] = "unknown"
+    to: str = ""
+    subject: str = ""
+    body: str = ""
+    link: str = ""
+    reason: str = ""

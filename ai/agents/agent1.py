@@ -2,8 +2,8 @@
 import asyncio
 from pydantic_ai import Agent, RunContext
 from ai.agents.deps import OrchestratorDeps
-
 from ai.prompts import load_prompt
+from schemas.agent1 import EmailAgentResult
 
 _email_agent: Agent | None = None
 
@@ -16,10 +16,10 @@ def get_email_agent() -> Agent:
         from config import settings
 
         _email_agent = Agent(
-            model=settings.model,
+            model=settings.ai_model,
             name="email_agent",
             system_prompt=_SYSTEM_PROMPT,
-
+            output_type=EmailAgentResult,
             deps_type=OrchestratorDeps,
         )
 
@@ -89,11 +89,3 @@ def get_email_agent() -> Agent:
                 return f"Failed to register domain: {e}"
 
     return _email_agent
-
-if __name__ == "__main__":
-    async def main():
-        agent = get_email_agent()
-        result = await agent.run("send an notification email to tomnguyen6766@gmail.com with subject 'Hello' and body 'Hello, how are you?'")
-        print(result.output)
-
-    asyncio.run(main())
