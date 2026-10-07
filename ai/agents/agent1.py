@@ -2,8 +2,8 @@
 import asyncio
 from pydantic_ai import Agent, RunContext
 from ai.agents.deps import OrchestratorDeps
-from schemas.agent1 import EmailRequest, EmailResult
 from ai.prompts import load_prompt
+from schemas.agent1 import EmailAgentResult
 
 _email_agent: Agent | None = None
 
@@ -19,41 +19,58 @@ def get_email_agent() -> Agent:
             model=settings.ai_model,
             name="email_agent",
             system_prompt=_SYSTEM_PROMPT,
-            output_type=EmailResult,
+            output_type=EmailAgentResult,
             deps_type=OrchestratorDeps,
         )
 
         @_email_agent.tool
-        async def send_email(ctx: RunContext[OrchestratorDeps], request: EmailRequest) -> str:
-            """Send an email — either a styled HTML notification or a plain user-composed email."""
+        async def send_user_email(
+            ctx: RunContext[OrchestratorDeps],
+            to: str,
+            subject: str,
+            body: str,
+        ) -> str:
+            """Send a plain email to any recipient on behalf of the user."""
             from config import settings
-            from tools.sending_email import send_notification_email, send_user_email
+            from tools.sending_email import send_user_email as _send
 
-            api_key = settings.resend_api_key
-            from_address = settings.resend_from
-
-            if request.email_type == "notification":
-                n = request.notification
-                n.api_key = api_key
-                n.from_address = from_address
-                result = await asyncio.to_thread(send_notification_email, n)
-                target = n.recipient
-            else:
-                u = request.user_request
-                result = await asyncio.to_thread(
-                    send_user_email,
-                    recipient=u.to,
-                    subject=u.subject,
-                    body=u.body,
-                    api_key=api_key,
-                    from_address=from_address,
-                )
-                target = u.to
-
+            result = await asyncio.to_thread(
+                _send,
+                recipient=to,
+                subject=subject,
+                body=body,
+                api_key=settings.resend_api_key,
+                from_address=settings.resend_from,
+            )
             if result == "ok":
-                return f"Email successfully sent to {target}."
-            else:
-                return f"Failed to send email to {target}. Do not retry. Reason: {result}"
+                return f"Email successfully sent to {to}."
+            return f"Failed to send email to {to}. Do not retry. Reason: {result}"
+
+        @_email_agent.tool
+        async def send_notification_email(
+            ctx: RunContext[OrchestratorDeps],
+            recipient: str,
+            subject: str,
+            details: str,
+            link: str = "",
+        ) -> str:
+            """Send a styled HTML notification email (system alerts, reminders, status updates)."""
+            from config import settings
+            from tools.sending_email import send_notification_email as _send
+            from schemas.agent1 import NotificationEmailRequest
+
+            n = NotificationEmailRequest(
+                recipient=recipient,
+                subject=subject,
+                details=details,
+                link=link,
+                api_key=settings.resend_api_key,
+                from_address=settings.resend_from,
+            )
+            result = await asyncio.to_thread(_send, n)
+            if result == "ok":
+                return f"Notification email successfully sent to {recipient}."
+            return f"Failed to send notification to {recipient}. Do not retry. Reason: {result}"
 
         @_email_agent.tool
         async def register_domain(ctx: RunContext[OrchestratorDeps], domain_name: str) -> str:

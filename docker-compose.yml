@@ -2,6 +2,14 @@ services:
   backend:
     build:
       context: .
+    develop:
+      watch:
+        - path: ./server.py
+          action: rebuild
+        - path: ./pyproject.toml
+          action: rebuild
+        - path: ./uv.lock
+          action: rebuild
     env_file: .env
     environment:
       - DESIR_HOST=0.0.0.0
@@ -11,11 +19,29 @@ services:
     volumes:
       - .:/app
       - backend_venv:/app/.venv
-    command: ["uv", "run", "--frozen", "python", "-m", "watchfiles", "python server.py", "/app"]
+    command:
+      [
+        "uv",
+        "run",
+        "--frozen",
+        "python",
+        "-m",
+        "watchfiles",
+        "python server.py",
+        "/app",
+      ]
 
   frontend:
     build:
       context: ./frontend
+    develop:
+      watch:
+        - path: ./frontend/src
+          action: rebuild
+        - path: ./frontend/package.json
+          action: rebuild
+        - path: ./frontend/package-lock.json
+          action: rebuild
     environment:
       - CHOKIDAR_USEPOLLING=1
       - VITE_WS_URL=ws://localhost:8765

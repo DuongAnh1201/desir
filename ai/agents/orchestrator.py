@@ -1,8 +1,16 @@
+from typing import Literal
+
+from pydantic import BaseModel
 from pydantic_ai import Agent
 
 from ai.prompts import load_prompt
 from ai.agents.deps import OrchestratorDeps
-from schemas.orchestrator import OrchestratorResult
+
+
+class OrchestratorResult(BaseModel):
+    intent: Literal["email", "calendar", "search", "communication", "knowledge", "unknown"]
+    response: str
+    """Human-readable reply shown to the user."""
 
 _orchestrator: Agent | None = None
 
@@ -68,6 +76,16 @@ def get_orchestrator() -> Agent:
                 else f"Send iMessage to {recipient}: {message}"
             )
             result = await get_communication_agent().run(prompt, deps=ctx.deps)
+            return result.output.message
+
+        @_orchestrator.tool
+        async def delegate_knowledge_base(ctx, request: str) -> str:
+            """Delegate a knowledge base operation to the knowledge base sub-agent.
+            Use for saving, retrieving, updating, or linking information.
+            Pass the full user request as-is.
+            """
+            from ai.agents.agent5 import get_knowledge_base_agent
+            result = await get_knowledge_base_agent().run(request, deps=ctx.deps)
             return result.output.message
 
     return _orchestrator

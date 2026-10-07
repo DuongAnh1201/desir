@@ -8,12 +8,14 @@ Usage anywhere in the project:
     key   = settings.serper_api_key
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 from dotenv import load_dotenv
 import os
 load_dotenv()
 
-class Settings(BaseSettings):
+class Settings():
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -34,6 +36,11 @@ class Settings(BaseSettings):
 
     realtime_voice: str = os.getenv("REALTIME_VOICE", "nova")
     """Realtime voice. Options: alloy, ash, ballad, coral, echo, sage, shimmer, verse."""
+    base_url: str = os.getenv("BASE_URL")
+    """Base URL for the API."""
+
+    api_key: str = os.getenv("API_KEY")
+    """API key for the API."""
 
     # ── API Keys ────────────────────────────────────────────────────────────────
     openai_api_key: str = os.getenv("OPENAI_API_KEY")
@@ -48,9 +55,12 @@ class Settings(BaseSettings):
     resend_from: str = os.getenv("RESEND_FROM", "Desir <onboarding@resend.dev>")
     """Sender address. Use a verified domain in production."""
 
-    logfire_token: str
+    logfire_token: str = os.getenv("LOGFIRE_TOKEN")
+    logfire_environment: str = os.getenv("LOGFIRE_ENVIRONMENT")
     """Required for Logfire integration."""
-
+    
+    file_path: str = os.getenv("FILE_PATH")
+    """Path to the knowledge base."""
 
 # Singleton — import this everywhere instead of instantiating Settings() yourself.
 settings = Settings()
